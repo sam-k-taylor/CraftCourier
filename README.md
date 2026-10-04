@@ -81,10 +81,22 @@ UI/Suggest.lua     Recipient name suggestions (alts, friends, Battle.net friends
 UI/LogWindow.lua   Send log window with filter
 UI/Config.lua      Recipient form, shown as the Options > AddOns page and as a small window
 .pkgmeta           CurseForge/BigWigs packager config
+package.sh         Builds the release zip into .release/
 CURSE.md           CurseForge project description
 .github/           Issue forms: missing category, item not picked up, wrong category
 ```
 
 ## Releasing
 
-`.pkgmeta` is set up for the [BigWigs packager](https://github.com/BigWigsMods/packager), which is what CurseForge uses. Tagging a commit produces a release, and the tag replaces `@project-version@` in the TOC.
+The version is set by `## Version:` in `CraftCourier.toc` (currently `0.0.1`). To build a release:
+
+```sh
+./package.sh          # uses the TOC version -> .release/CraftCourier-0.0.1.zip
+./package.sh 0.0.2    # or give a version; it's written into the packaged TOC
+```
+
+The zip contains only the addon (`CraftCourier.toc`, the `.lua` files, `UI/` and `LICENSE`), ready to upload to CurseForge. `.release/` is git-ignored.
+
+## License
+
+CraftCourier is released under the [MIT License](LICENSE).

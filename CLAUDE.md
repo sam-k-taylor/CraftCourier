@@ -65,6 +65,11 @@ There are no automated tests. Test in game:
 2. Turn on Lua errors with `/console scriptErrors 1`, or use BugSack.
 3. Open a mailbox carrying several material types, more than 12 stacks of at least one of them, and a soulbound item. Check the counts, tooltips, chunking, Send All grouping, and that closing the mailbox mid-send stops cleanly.
 
+## Releasing
+
+- `./package.sh [version]` builds `.release/CraftCourier-<version>.zip`, with the version taken from `## Version:` in the TOC by default. When you add a new top-level file or folder that the addon loads, add it to `package.sh` too.
+- Bump `## Version:` in `CraftCourier.toc` for each release.
+
 ## Docs
 
 - `README.md`: for developers and GitHub readers.

@@ -48,3 +48,7 @@ Please [open a GitHub issue](https://github.com/sam-k-taylor/CraftCourier/issues
 - **An item is in the wrong category**, for example a bar showing up under Stone.
 
 The issue forms will ask you to run `/ccr item` and shift-click the item into it, e.g. `/ccr item [Copper Bar]`. That prints everything we need to sort it correctly. Paste the output, along with the category you expected. Bug reports and other suggestions are welcome there too.
+
+## License
+
+CraftCourier is open source under the [MIT License](https://github.com/sam-k-taylor/CraftCourier/blob/master/LICENSE).
