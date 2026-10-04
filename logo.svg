@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Background tile with gold frame (matches EnhancedQuestTracker) -->
+  <rect x="8" y="8" width="496" height="496" rx="72" fill="#1e160d" stroke="#b8862b" stroke-width="12"/>
+  <rect x="28" y="28" width="456" height="456" rx="56" fill="none" stroke="#5a4020" stroke-width="4"/>
+
+  <!-- Material slots: herb, ore, bar -->
+  <g stroke-width="6">
+    <rect x="72" y="76" width="104" height="104" rx="18" fill="#2c2114" stroke="#40c040"/>
+    <rect x="204" y="76" width="104" height="104" rx="18" fill="#2c2114" stroke="#9a9a9a"/>
+    <rect x="336" y="76" width="104" height="104" rx="18" fill="#2c2114" stroke="#ffd100"/>
+  </g>
+
+  <!-- Herb leaf -->
+  <g transform="translate(124 128)">
+    <path d="M -30 30 C -34 -10, -6 -36, 32 -34 C 34 4, 8 32, -30 30 Z" fill="#40c040" stroke="#1d5a1d" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M -26 26 L 22 -24" stroke="#1d5a1d" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <!-- Ore chunk with copper flecks -->
+  <g transform="translate(256 128)">
+    <path d="M -36 18 L -24 -22 L 4 -34 L 32 -16 L 36 16 L 10 34 L -22 32 Z" fill="#7a7468" stroke="#3a352d" stroke-width="5" stroke-linejoin="round"/>
+    <circle cx="-8" cy="-6" r="8" fill="#ff8040"/>
+    <circle cx="16" cy="10" r="6" fill="#ff8040"/>
+    <circle cx="-16" cy="18" r="5" fill="#ff8040"/>
+  </g>
+
+  <!-- Gold bar -->
+  <g transform="translate(388 128)" stroke="#6a4a00" stroke-width="5" stroke-linejoin="round">
+    <path d="M -38 22 L -24 -10 L 24 -10 L 38 22 Z" fill="#ffd100"/>
+    <path d="M -24 -10 L -14 -24 L 14 -24 L 24 -10 Z" fill="#ffe680"/>
+  </g>
+
+  <!-- Speed lines: mail on its way -->
+  <g stroke="#b8862b" stroke-width="10" stroke-linecap="round">
+    <line x1="56" y1="282" x2="118" y2="282"/>
+    <line x1="72" y1="330" x2="118" y2="330"/>
+    <line x1="56" y1="378" x2="118" y2="378"/>
+  </g>
+
+  <!-- Envelope -->
+  <g stroke="#3a2200" stroke-width="10" stroke-linejoin="round">
+    <rect x="140" y="226" width="300" height="200" rx="16" fill="#f0dfb4"/>
+    <path d="M 140 426 L 262 322 M 440 426 L 318 322" fill="none"/>
+    <path d="M 146 232 L 290 338 L 434 232" fill="#e4cc94"/>
+  </g>
+
+  <!-- Wax seal -->
+  <circle cx="290" cy="338" r="30" fill="#c0302a" stroke="#5a1210" stroke-width="6"/>
+  <circle cx="290" cy="338" r="14" fill="none" stroke="#e86a5a" stroke-width="4"/>
+</svg>

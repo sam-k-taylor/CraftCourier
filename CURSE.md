@@ -2,11 +2,11 @@
 
 **Stop dragging mats into the mail one stack at a time.**
 
-CraftCourier lets you assign a character to each type of crafting material. When you visit a mailbox, it sends everything to the right alt in one click.
+CraftCourier lets you assign a character to each type of crafting material, and to unbound BoE gear of each rarity. When you visit a mailbox, it sends everything to the right alt in one click.
 
 ## How it works
 
-1. Type **/craftcourier** (or use **Options → AddOns → CraftCourier**) and choose who gets what. Names are suggested as you type, from your alts, your friends list and Battle.net friends. For example, your tailor gets Cloth, your leatherworker gets Leather, your alchemist gets Herbs, and so on.
+1. Type **/craftcourier** (or use **Options → AddOns → CraftCourier**) and choose who gets what. Names are suggested as you type: characters on your account, friends, guild members and Battle.net friends, as long as they're on your realm and faction. For example, your tailor gets Cloth, your leatherworker gets Leather, your alchemist gets Herbs, and so on.
 2. Open any mailbox. A panel appears next to it, listing each material type in your bags and how many you have.
 3. For each material type, choose **One Click Send** to mail it right away, or **Review and Send** to have the mail filled in so you can check it and press Send yourself. **Send All** and **Review All** do the same for everything.
 
@@ -18,7 +18,7 @@ CraftCourier attaches the stacks, fills each mail to the 12-attachment limit and
 - **BoE gear by rarity:** send unbound Bind on Equip items to a different alt for each rarity (Uncommon, Rare, Epic). Ideal for an auction alt or a disenchanter.
 - **One Click Send** or **Review and Send** for every material type, from a panel docked to the mailbox.
 - **Send All** packs material types that go to the same alt into shared mails, so you pay for fewer mails.
-- **Name suggestions** from your own characters and your friends as you type.
+- **Name suggestions** as you type, showing only characters you can actually mail.
 - **Smart hiding:** on your herbalism alt, the Herbs button doesn't appear, because it's already the right character.
 - **Tooltips** show exactly which items will go to whom before you click.
 - **Safe:** soulbound items are skipped, it never mails the character you're playing, and sending stops if a mail fails or you close the mailbox.
@@ -28,11 +28,14 @@ CraftCourier attaches the stacks, fills each mail to the 12-attachment limit and
 ## Commands
 
 - `/craftcourier` or `/ccr`: open the settings window
-- `/craftcourier set <category> <Name-Realm>`: set a recipient
+- `/craftcourier set <category> <Name Surname>`: set a recipient, e.g. `/ccr set leather Greeb Deez`
+- `/craftcourier clear <category>`: remove a recipient
 - `/craftcourier log`: open the send log
 - `/craftcourier list`: show your recipients
 - `/craftcourier assign [item link] <category|ignore>`: fix an item's category
 - `/craftcourier unassign [item link]`: undo an override
+- `/craftcourier item [item link]`: show how an item is categorised (handy for bug reports)
+- `/craftcourier debug`: show which character CraftCourier thinks you're on
 
 ## Notes
 

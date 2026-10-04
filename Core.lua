@@ -164,7 +164,7 @@ end
 local function printHelp()
     ns:Print("commands:")
     print("  /craftcourier  - open the settings window")
-    print("  /craftcourier set <category> <Name[-Realm]>")
+    print("  /craftcourier set <category> <Name Surname[-Realm]>")
     print("  /craftcourier clear <category>")
     print("  /craftcourier log  - show the send log")
     print("  /craftcourier list")
@@ -178,10 +178,11 @@ end
 local commands = {}
 
 function commands.set(rest)
-    local catName, recipient = rest:match("^(%S+)%s+(%S+)$")
+    -- The recipient may contain a space: Forever names include a surname.
+    local catName, recipient = rest:match("^(%S+)%s+(.-)%s*$")
     local cat = catName and ns:FindCategory(catName)
-    if not cat then
-        ns:Print("usage: /craftcourier set <category> <Name[-Realm]>")
+    if not cat or recipient == "" then
+        ns:Print("usage: /craftcourier set <category> <Name Surname[-Realm]>")
         return
     end
     ns.db.recipients[cat.key] = recipient
