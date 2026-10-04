@@ -1,0 +1,40 @@
+name: Item in the wrong category
+description: An item is sorted into the wrong CraftCourier category.
+title: "[Wrong category] "
+labels: ["item classification"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this! Please run `/ccr item` and shift-click the item into the command, e.g. `/ccr item [Copper Bar]`, and paste what it prints below.
+
+        Until it's fixed, you can move the item yourself with `/ccr assign [item] <category>`.
+  - type: textarea
+    id: item-info
+    attributes:
+      label: "/ccr item output"
+      description: Paste the full output. It includes the item ID and the details CraftCourier uses to sort it.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: current
+    attributes:
+      label: Current category
+      description: Where does CraftCourier put it now?
+      placeholder: e.g. Stone
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: Expected category
+      description: Where should it go?
+      placeholder: e.g. Bars
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: CraftCourier version
+      description: Shown in the AddOns list at character select.

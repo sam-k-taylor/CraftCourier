@@ -1,0 +1,37 @@
+name: Missing category
+description: Suggest a type of material or item that should have its own category.
+title: "[Category] "
+labels: ["category request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion! Tell us what kind of item you'd like CraftCourier to send to its own alt.
+  - type: input
+    id: category
+    attributes:
+      label: Category name
+      description: What would you call the new category?
+      placeholder: e.g. Fish, Reagents, Recipes
+    validations:
+      required: true
+  - type: textarea
+    id: items
+    attributes:
+      label: Example items
+      description: |
+        List a few items that belong in it. For each one, run `/ccr item` and shift-click the item into the command (e.g. `/ccr item [Raw Brilliant Smallfish]`), then paste the output here.
+      placeholder: |
+        CraftCourier: item 6291 [Raw Brilliant Smallfish] ...
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it should be separate
+      description: Optional. What's your use case, e.g. which alt would receive these?
+  - type: input
+    id: version
+    attributes:
+      label: CraftCourier version
+      description: Shown in the AddOns list at character select.

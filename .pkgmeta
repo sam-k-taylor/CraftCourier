@@ -1,0 +1,7 @@
+package-as: CraftCourier
+
+ignore:
+  - CLAUDE.md
+  - CURSE.md
+  - .gitignore
+  - .github
