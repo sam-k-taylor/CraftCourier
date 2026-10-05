@@ -14,7 +14,7 @@ CraftCourier attaches the stacks, fills each mail to the 12-attachment limit and
 
 ## Features
 
-- **13 material types:** Cloth, Leather, Herbs, Ore, Bars, Stone, Gems, Enchanting, Elemental, Cooking, Inscription, Parts and Other Trade Goods.
+- **12 material types:** Cloth, Leather, Herbs, Ore, Bars, Stone, Gems, Enchanting, Elemental, Cooking, Parts and Other Trade Goods.
 - **BoE gear by rarity:** send unbound Bind on Equip items to a different alt for each rarity (Uncommon, Rare, Epic). Ideal for an auction alt or a disenchanter.
 - **One Click Send** or **Review and Send** for every material type, from a panel docked to the mailbox.
 - **Send All** packs material types that go to the same alt into shared mails, so you pay for fewer mails.

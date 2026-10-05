@@ -15,7 +15,6 @@ ns.categories = {
     { key = "enchanting",  label = "Enchanting",  icon = "Interface\\Icons\\INV_Enchant_DustArcane" },
     { key = "elemental",   label = "Elemental",   icon = "Interface\\Icons\\INV_Elemental_Primal_Fire" },
     { key = "cooking",     label = "Cooking",     icon = "Interface\\Icons\\INV_Misc_Food_15" },
-    { key = "inscription", label = "Inscription", icon = "Interface\\Icons\\INV_Feather_05" },
     { key = "parts",       label = "Parts",       icon = "Interface\\Icons\\INV_Misc_Gear_01" },
     { key = "other",       label = "Other Trade Goods", icon = "Interface\\Icons\\INV_Misc_Bag_10" },
 
@@ -60,7 +59,6 @@ local subclassMap = {
     [9] = "herbs",
     [10] = "elemental",
     [12] = "enchanting",
-    [16] = "inscription",
 }
 
 -- Accepts a key or a label, case-insensitive.

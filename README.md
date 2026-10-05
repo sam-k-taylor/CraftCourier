@@ -8,7 +8,7 @@ Pick a character for each type of material: cloth, leather, herbs, ore, bars and
 
 ## Features
 
-- A recipient for each material type: Cloth, Leather, Herbs, Ore, Bars, Stone, Gems, Enchanting, Elemental, Cooking, Inscription, Parts and Other Trade Goods.
+- A recipient for each material type: Cloth, Leather, Herbs, Ore, Bars, Stone, Gems, Enchanting, Elemental, Cooking, Parts and Other Trade Goods.
 - A recipient for **unbound Bind on Equip items** of each rarity: BoE Uncommon, Rare and Epic.
 - Settings in two places: a page under **Options → AddOns → CraftCourier**, and a small window opened with `/craftcourier` or the mailbox panel's **Settings** button. As you type a recipient, it suggests names from the game's own mail autocomplete (every character on your account, friends, guild members and people you've played with recently), recipients you've already set, and Battle.net friends playing this version of WoW. Only characters you can actually mail (same realm and faction) are suggested.
 - A panel docked beside the mailbox, listing each material type in your bags with its item count and two buttons:

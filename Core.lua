@@ -84,6 +84,20 @@ ns:RegisterEvent("ADDON_LOADED", function(_, name)
         end
     end
     ns.db = CraftCourierDB
+
+    -- Drop settings for categories that no longer exist (e.g. Inscription,
+    -- which Forever doesn't have), so their items fall back to normal classification.
+    for key in pairs(ns.db.recipients) do
+        if not ns.categoryByKey[key] then
+            ns.db.recipients[key] = nil
+        end
+    end
+    for itemID, key in pairs(ns.db.overrides) do
+        if key ~= "ignore" and not ns.categoryByKey[key] then
+            ns.db.overrides[itemID] = nil
+        end
+    end
+
     ns:Fire("READY")
 end)
 
