@@ -2,9 +2,9 @@
 ## Title: CraftCourier
 ## Notes: Assign alts to crafting material types and mail them with one click from the mailbox.
 ## Author: Sam Taylor
-## Version: 0.0.1
+## Version: 0.0.3
 ## SavedVariables: CraftCourierDB
-## IconTexture: Interface\Icons\INV_Letter_15
+## IconTexture: Interface\AddOns\CraftCourier\Media\Icon
 ## X-Category: Professions
 ## X-Website: https://github.com/sam-k-taylor/CraftCourier
 ## X-License: MIT

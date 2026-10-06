@@ -16,7 +16,7 @@ rm -rf "$STAGE" "$ZIP"
 mkdir -p "$STAGE"
 
 cp ./*.lua "$STAGE/"
-cp -r UI "$STAGE/"
+cp -r UI Media "$STAGE/"
 [ -f LICENSE ] && cp LICENSE "$STAGE/"
 sed -e "s/^## Version:.*/## Version: $VERSION/" -e "s/@project-version@/$VERSION/g" "$ADDON.toc" > "$STAGE/$ADDON.toc"
 

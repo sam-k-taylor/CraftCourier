@@ -20,6 +20,7 @@ A World of Warcraft addon in Lua that mails crafting materials and unbound BoE g
 | --- | --- |
 | `CraftCourier.toc` | Manifest; the load order is the file order |
 | `package.sh` | Builds the release zip (see Releasing) |
+| `Media/Icon.tga` | AddOns list icon (`## IconTexture`), 64×64 TGA rendered from `logo.svg` |
 | `Core.lua` | `ns` setup, `CraftCourierDB` defaults, API shims, the event and message bus, `ns:GetPlayerName()` / `ns:IsSelf()`, slash commands (including `item` and `debug` for diagnostics) |
 | `Categories.lua` | `ns.categories` (also sets the UI order), `ns:Classify`, `ns:ScanBags`, `ns:CategoryDisplayName`. BoE categories have a `quality` field. `Classify` checks for BoE (`bindType == Enum.ItemBind.OnEquip`) before trade goods. |
 | `Mailer.lua` | `ns.Mailer` queue: `Queue(keys)`, `Start(mode)` where `mode` is `"auto"` or `"review"`, `Stop(reason, clearForm)` |
