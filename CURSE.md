@@ -7,7 +7,7 @@ CraftCourier lets you assign a character to each type of crafting material, and 
 ## How it works
 
 1. Type **/craftcourier** (or use **Options → AddOns → CraftCourier**) and choose who gets what. Names are suggested as you type: characters on your account, friends, guild members and Battle.net friends, as long as they're on your realm and faction. For example, your tailor gets Cloth, your leatherworker gets Leather, your alchemist gets Herbs, and so on.
-2. Open any mailbox. A panel appears next to it, listing each material type in your bags and how many you have.
+2. Open any mailbox. The CraftCourier panel beside the inbox (and on the **Send Mail** tab) lists each material type in your bags and how many you have.
 3. For each material type, choose **One Click Send** to mail it right away, or **Review and Send** to have the mail filled in so you can check it and press Send yourself. **Send All** and **Review All** do the same for everything.
 
 CraftCourier attaches the stacks, fills each mail to the 12-attachment limit and keeps sending until your bags are empty of that material.
@@ -15,14 +15,18 @@ CraftCourier attaches the stacks, fills each mail to the 12-attachment limit and
 ## Features
 
 - **12 material types:** Cloth, Leather, Herbs, Ore, Bars, Stone, Gems, Enchanting, Elemental, Cooking, Parts and Other Trade Goods.
+- **Comprehension Scrolls:** send the Mage-only scrolls you loot (deciphered or not) to your mage.
 - **BoE gear by rarity:** send unbound Bind on Equip items to a different alt for each rarity (Uncommon, Rare, Epic). Ideal for an auction alt or a disenchanter.
-- **One Click Send** or **Review and Send** for every material type, from a panel docked to the mailbox.
+- **One Click Send** or **Review and Send** for every material type, right inside the mailbox.
+- **A better inbox:** the mail window is twice as wide, with a summary of your mail (how many, items, gold, COD and anything about to expire) and one scrolling list of every mail, with no pages. Take a whole mail with one click, or just one attachment.
+- **Settings tab** on the mailbox, so you can change recipients without leaving it. Prefer Blizzard's mailbox? Turn off **Extend the mailbox** and the panel docks beside it instead.
 - **Send All** packs material types that go to the same alt into shared mails, so you pay for fewer mails.
 - **Name suggestions** as you type, showing only characters you can actually mail.
 - **Smart hiding:** on your herbalism alt, the Herbs button doesn't appear, because it's already the right character.
 - **Tooltips** show exactly which items will go to whom before you click.
 - **Safe:** soulbound items are skipped, it never mails the character you're playing, and sending stops if a mail fails or you close the mailbox.
 - **Send log:** see every mail CraftCourier has sent, from any of your characters: when it went, who sent it, who received it and what was in it. Filter by name or item.
+- **Keep cloth for First Aid:** turn on **Keep the cloth my First Aid skill still needs** and CraftCourier holds back the cloth your character's First Aid still needs: the one for your current level and every type above it. For example, at 120 it keeps Wool, Silk, Mageweave and Runecloth and mails your Linen. (Linen is used below 81, Wool below 151, Silk below 211, Mageweave below 261, Runecloth below 300.)
 - **Overrides:** reassign any item to a different category, or tell CraftCourier to ignore it.
 
 ## Commands

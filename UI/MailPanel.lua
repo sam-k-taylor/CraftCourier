@@ -1,36 +1,38 @@
 local _, ns = ...
 
--- Panel docked to the right of the mailbox. Each category row has two actions:
--- "One Click Send" mails everything immediately, "Review and Send" fills in the
--- send form and leaves the user to press Send.
+-- The CraftCourier send panel: one row per category with items in the bags.
+-- "One Click Send" mails everything immediately, "Review and Send" fills in
+-- the send form and leaves the user to press Send.
+--
+-- The same content frame has two homes (ns:PlaceMailPanel):
+--   embedded - the right half of the extended Send Mail tab (UI/Mailbox.lua)
+--   docked   - a separate window beside the mailbox, as in older versions
 
-local PANEL_WIDTH = 270
+local DOCKED_WIDTH = 270
 local ROW_HEIGHT = 46
 local ROW_SPACING = 4
-local TOP_OFFSET = 30
 local BUTTON_HEIGHT = 20
-local FOOTER_HEIGHT = 90
 
-local panel
-local rows = {}
+local content, docked
+local embedded = false
+local extendedMode = false -- UI/Mailbox.lua has widened the mailbox
+local placedIn             -- the frame content is currently anchored in
+local dockedClosed = false -- the user closed the docked window this visit
 local lastScan = {}
 
 local function showRowTooltip(row)
-    local cat = row.category
-    local entry = lastScan[cat.key]
+    local data = row.data
+    if not data then return end
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
-    GameTooltip:AddLine(ns:CategoryDisplayName(cat))
-    local recipient = ns:GetRecipient(cat.key)
-    if recipient then
-        GameTooltip:AddLine("To: " .. recipient, 1, 1, 1)
+    GameTooltip:AddLine(ns:CategoryDisplayName(data.category))
+    if data.recipient then
+        GameTooltip:AddLine("To: " .. data.recipient, 1, 1, 1)
     else
-        GameTooltip:AddLine("No recipient set. Type /craftcourier to set one.", 1, 0.3, 0.3)
+        GameTooltip:AddLine("No recipient set. Set one in Settings.", 1, 0.3, 0.3)
     end
-    if entry then
-        GameTooltip:AddLine(" ")
-        for _, item in pairs(entry.items) do
-            GameTooltip:AddDoubleLine(("|T%s:14|t %s"):format(item.icon or "", item.name), item.count, 1, 1, 1, 1, 1, 1)
-        end
+    GameTooltip:AddLine(" ")
+    for _, item in pairs(data.entry.items) do
+        GameTooltip:AddDoubleLine(("|T%s:14|t %s"):format(item.icon or "", item.name), item.count, 1, 1, 1, 1, 1, 1)
     end
     GameTooltip:Show()
 end
@@ -51,85 +53,212 @@ local function allKeys()
     return keys
 end
 
-local function createButton(parent, text, width, onClick)
+local function createButton(parent, text, onClick)
     local button = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    button:SetSize(width, BUTTON_HEIGHT)
+    button:SetHeight(BUTTON_HEIGHT)
     button:SetText(text)
     button:SetScript("OnClick", onClick)
     return button
 end
 
-local function createRow(index)
-    local row = CreateFrame("Frame", nil, panel)
-    row:SetSize(PANEL_WIDTH - 24, ROW_HEIGHT)
-    row:SetPoint("TOPLEFT", 12, -(TOP_OFFSET + (index - 1) * (ROW_HEIGHT + ROW_SPACING)))
-    row:EnableMouse(true)
-    row:SetScript("OnEnter", showRowTooltip)
-    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+local function initRow(row, data)
+    if not row.label then
+        row:EnableMouse(true)
+        row:SetScript("OnEnter", showRowTooltip)
+        row:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    row.label:SetPoint("TOPLEFT", 2, -2)
-    row.label:SetPoint("TOPRIGHT", -2, -2)
-    row.label:SetJustifyH("LEFT")
-    row.label:SetWordWrap(false)
+        row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        row.label:SetPoint("TOPLEFT", 2, -2)
+        row.label:SetPoint("TOPRIGHT", -2, -2)
+        row.label:SetJustifyH("LEFT")
+        row.label:SetWordWrap(false)
 
-    local halfWidth = (PANEL_WIDTH - 24 - 4) / 2
-    row.send = createButton(row, "One Click Send", halfWidth, function()
-        start({ row.category.key }, "auto")
-    end)
-    row.send:SetPoint("BOTTOMLEFT")
+        -- Each button takes half the row, whatever width the list gives it.
+        row.send = createButton(row, "One Click Send", function(self)
+            start({ self:GetParent().data.category.key }, "auto")
+        end)
+        row.send:SetPoint("BOTTOMLEFT", 0, ROW_SPACING)
+        row.send:SetPoint("BOTTOMRIGHT", row, "BOTTOM", -2, ROW_SPACING)
 
-    row.review = createButton(row, "Review and Send", halfWidth, function()
-        start({ row.category.key }, "review")
-    end)
-    row.review:SetPoint("BOTTOMRIGHT")
+        row.review = createButton(row, "Review and Send", function(self)
+            start({ self:GetParent().data.category.key }, "review")
+        end)
+        row.review:SetPoint("BOTTOMLEFT", row, "BOTTOM", 2, ROW_SPACING)
+        row.review:SetPoint("BOTTOMRIGHT", 0, ROW_SPACING)
+    end
 
-    rows[index] = row
-    return row
+    row.data = data
+    row.label:SetText(("|T%s:16|t %s (%d) |cffffffff-> %s|r"):format(
+        data.category.icon, ns:CategoryDisplayName(data.category), data.entry.total,
+        data.recipient or "|cffff5555no recipient|r"))
+    local enabled = data.recipient ~= nil and not ns.Mailer:IsBusy()
+    row.send:SetEnabled(enabled)
+    row.review:SetEnabled(enabled)
 end
 
-local function createPanel()
-    panel = CreateFrame("Frame", "CraftCourierMailPanel", MailFrame, "BasicFrameTemplateWithInset")
-    panel:SetWidth(PANEL_WIDTH)
-    panel:SetPoint("TOPLEFT", MailFrame, "TOPRIGHT", 4, 0)
-    panel:SetFrameStrata("HIGH")
+local function createContent()
+    content = CreateFrame("Frame")
 
-    local title = panel.TitleText or panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    if not panel.TitleText then
-        title:SetPoint("TOP", 0, -5)
-    end
-    title:SetText("CraftCourier")
+    content.title = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    content.title:SetPoint("TOPLEFT", 2, 0)
+    content.title:SetText("CraftCourier")
 
-    panel.empty = panel:CreateFontString(nil, "OVERLAY", "GameFontDisable")
-    panel.empty:SetPoint("TOP", 0, -TOP_OFFSET - 4)
-    panel.empty:SetText("Nothing to send.")
+    -- Separates the embedded panel from Blizzard's send form.
+    content.divider = content:CreateTexture(nil, "ARTWORK")
+    content.divider:SetColorTexture(1, 0.82, 0, 0.25)
+    content.divider:SetWidth(1)
+    content.divider:SetPoint("TOPRIGHT", content, "TOPLEFT", -6, 0)
+    content.divider:SetPoint("BOTTOMRIGHT", content, "BOTTOMLEFT", -6, 0)
 
-    panel.status = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    panel.status:SetPoint("BOTTOMLEFT", 12, 64)
-    panel.status:SetPoint("BOTTOMRIGHT", -12, 64)
+    content.scrollBox = CreateFrame("Frame", nil, content, "WowScrollBoxList")
+    content.scrollBar = CreateFrame("EventFrame", nil, content, "MinimalScrollBar")
+    content.scrollBar:SetPoint("TOPLEFT", content.scrollBox, "TOPRIGHT", 4, 0)
+    content.scrollBar:SetPoint("BOTTOMLEFT", content.scrollBox, "BOTTOMRIGHT", 4, 0)
 
-    local halfWidth = (PANEL_WIDTH - 24 - 4) / 2
+    local view = CreateScrollBoxListLinearView()
+    view:SetElementExtent(ROW_HEIGHT)
+    view:SetElementInitializer("Frame", initRow)
+    ScrollUtil.InitScrollBoxListWithScrollBar(content.scrollBox, content.scrollBar, view)
+
+    content.empty = content:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+    content.empty:SetPoint("TOP", content.scrollBox, "TOP", 0, -8)
+    content.empty:SetText("Nothing to send.")
+
+    content.status = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    content.status:SetJustifyH("LEFT")
 
     -- Doubles as "Stop" while the mailer is busy.
-    panel.sendAll = createButton(panel, "Send All", halfWidth, function()
+    content.sendAll = createButton(content, "Send All", function()
         if ns.Mailer:IsBusy() then
             ns.Mailer:Stop("Stopped.", true)
         else
             start(allKeys(), "auto")
         end
     end)
-    panel.sendAll:SetPoint("BOTTOMLEFT", 12, 38)
-
-    panel.reviewAll = createButton(panel, "Review All", halfWidth, function()
+    content.reviewAll = createButton(content, "Review All", function()
         start(allKeys(), "review")
     end)
-    panel.reviewAll:SetPoint("LEFT", panel.sendAll, "RIGHT", 4, 0)
+    content.settings = createButton(content, "Settings", function() ns:ShowSettings() end)
+    content.log = createButton(content, "Log", function() ns:ToggleLog() end)
 
-    panel.options = createButton(panel, "Settings", halfWidth, function() ns:ToggleConfig() end)
-    panel.options:SetPoint("BOTTOMLEFT", 12, 12)
+    content:SetScript("OnShow", function() ns:RefreshMailPanel() end)
+end
 
-    panel.log = createButton(panel, "Log", halfWidth, function() ns:ToggleLog() end)
-    panel.log:SetPoint("LEFT", panel.options, "RIGHT", 4, 0)
+-- Embedded: one row of buttons along the bottom, level with Blizzard's
+-- Send/Cancel. Settings is a tab there, so its button is hidden.
+-- Docked: two rows of two, as before.
+local function layout()
+    local buttons = { content.sendAll, content.reviewAll, content.settings, content.log }
+    for _, button in ipairs(buttons) do
+        button:ClearAllPoints()
+    end
+    content.status:ClearAllPoints()
+    content.scrollBox:ClearAllPoints()
+
+    local footer
+    if embedded then
+        content.settings:Hide()
+        content.sendAll:SetPoint("BOTTOMLEFT", 0, 0)
+        content.sendAll:SetPoint("BOTTOMRIGHT", content, "BOTTOMLEFT", 116, 0)
+        content.reviewAll:SetPoint("TOPLEFT", content.sendAll, "TOPRIGHT", 4, 0)
+        content.reviewAll:SetPoint("BOTTOMRIGHT", content, "BOTTOMLEFT", 236, 0)
+        content.log:SetPoint("TOPLEFT", content.reviewAll, "TOPRIGHT", 4, 0)
+        content.log:SetPoint("BOTTOMRIGHT", 0, 0)
+        footer = BUTTON_HEIGHT + 4
+    else
+        content.settings:Show()
+        content.settings:SetPoint("BOTTOMLEFT", 0, 0)
+        content.settings:SetPoint("BOTTOMRIGHT", content, "BOTTOM", -2, 0)
+        content.log:SetPoint("BOTTOMLEFT", content, "BOTTOM", 2, 0)
+        content.log:SetPoint("BOTTOMRIGHT", 0, 0)
+        content.sendAll:SetPoint("BOTTOMLEFT", content.settings, "TOPLEFT", 0, 6)
+        content.sendAll:SetPoint("BOTTOMRIGHT", content.settings, "TOPRIGHT", 0, 6)
+        content.reviewAll:SetPoint("BOTTOMLEFT", content.log, "TOPLEFT", 0, 6)
+        content.reviewAll:SetPoint("BOTTOMRIGHT", content.log, "TOPRIGHT", 0, 6)
+        footer = 2 * BUTTON_HEIGHT + 10
+    end
+
+    content.status:SetPoint("BOTTOMLEFT", 0, footer + 4)
+    content.status:SetPoint("BOTTOMRIGHT", 0, footer + 4)
+
+    local top = embedded and 26 or 0
+    content.title:SetShown(embedded)
+    content.divider:SetShown(embedded)
+    content.scrollBox:SetPoint("TOPLEFT", 0, -top)
+    content.scrollBox:SetPoint("BOTTOMRIGHT", -16, footer + 22)
+end
+
+local function createDocked()
+    docked = CreateFrame("Frame", "CraftCourierMailPanel", MailFrame, "BasicFrameTemplateWithInset")
+    docked:SetWidth(DOCKED_WIDTH)
+    docked:SetPoint("TOPLEFT", MailFrame, "TOPRIGHT", 4, 0)
+    docked:SetPoint("BOTTOMLEFT", MailFrame, "BOTTOMRIGHT", 4, 0)
+    docked:SetFrameStrata("HIGH")
+
+    local title = docked.TitleText or docked:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    if not docked.TitleText then
+        title:SetPoint("TOP", 0, -5)
+    end
+    title:SetText("CraftCourier")
+
+    -- Closing the window keeps it closed until the mailbox is next opened,
+    -- rather than until the next tab switch.
+    if docked.CloseButton then
+        docked.CloseButton:HookScript("OnClick", function() dockedClosed = true end)
+    end
+end
+
+-- Extended mailbox: embedded on the Send Mail tab, docked on the Inbox tab
+-- (the inbox list needs the full width), neither on the Settings tab.
+-- Plain mailbox: docked on every tab.
+local function place()
+    local embed = extendedMode and SendMailFrame:IsShown()
+    local showDocked = not embed and ns.db.showPanel and not dockedClosed
+        and (not extendedMode or InboxFrame:IsShown())
+        -- Blizzard opens a letter exactly where the docked window sits.
+        and not (OpenMailFrame and OpenMailFrame:IsShown())
+
+    local home = embed and SendMailFrame or docked
+    if home ~= placedIn then
+        placedIn = home
+        embedded = embed
+        content:ClearAllPoints()
+        if embedded then
+            -- Blizzard's form keeps the left half (SendMailFrame is pinned to its
+            -- original width); the panel fills the rest of the Send Mail tab.
+            content:SetParent(SendMailFrame)
+            content:SetPoint("TOPLEFT", SendMailFrame, "TOPRIGHT", 14, -88)
+            content:SetPoint("BOTTOMRIGHT", MailFrame, "BOTTOMRIGHT", -10, 5)
+        else
+            content:SetParent(docked)
+            content:SetPoint("TOPLEFT", 12, -30)
+            content:SetPoint("BOTTOMRIGHT", -12, 12)
+        end
+        content:Show()
+        layout()
+    end
+    docked:SetShown(showDocked)
+    ns:RefreshMailPanel()
+end
+
+local function hookPlacement()
+    local frames = { InboxFrame, SendMailFrame, OpenMailFrame }
+    for _, frame in pairs(frames) do
+        frame:HookScript("OnShow", place)
+        frame:HookScript("OnHide", place)
+    end
+end
+
+-- Called by UI/Mailbox.lua whenever the mailbox is extended or restored.
+function ns:PlaceMailPanel(extended)
+    if not MailFrame then return end
+    if not content then
+        createContent()
+        createDocked()
+        hookPlacement()
+    end
+    extendedMode = extended
+    place()
 end
 
 local function statusText()
@@ -142,57 +271,44 @@ local function statusText()
 end
 
 function ns:RefreshMailPanel()
-    if not panel or not panel:IsShown() then return end
+    if not content or not content:IsVisible() then return end
 
     local busy = ns.Mailer:IsBusy()
     lastScan = ns:ScanBags()
 
-    local shown, anySendable = 0, false
+    local data = CreateDataProvider()
+    local anySendable = false
     for _, cat in ipairs(ns.categories) do
         local entry = lastScan[cat.key]
         local recipient = ns:GetRecipient(cat.key)
         -- Hide categories this character is the recipient for; it already has them.
         if entry and not (recipient and ns:IsSelf(recipient)) then
-            shown = shown + 1
-            local row = rows[shown] or createRow(shown)
-            row.category = cat
-            row.label:SetText(("|T%s:16|t %s (%d) |cffffffff-> %s|r"):format(
-                cat.icon, ns:CategoryDisplayName(cat), entry.total, recipient or "|cffff5555no recipient|r"))
-            local enabled = recipient ~= nil and not busy
-            row.send:SetEnabled(enabled)
-            row.review:SetEnabled(enabled)
-            row:Show()
+            data:Insert({ category = cat, entry = entry, recipient = recipient })
             anySendable = anySendable or recipient ~= nil
         end
     end
-    for i = shown + 1, #rows do
-        rows[i]:Hide()
-    end
+    content.scrollBox:SetDataProvider(data, true)
 
-    panel.empty:SetShown(shown == 0)
-    panel.sendAll:SetText(busy and "Stop" or "Send All")
-    panel.sendAll:SetEnabled(busy or anySendable)
-    panel.reviewAll:SetEnabled(anySendable and not busy)
-    panel.status:SetText(statusText())
-
-    local listHeight = math.max(shown, 1) * (ROW_HEIGHT + ROW_SPACING)
-    panel:SetHeight(TOP_OFFSET + listHeight + FOOTER_HEIGHT)
+    content.empty:SetShown(data:GetSize() == 0)
+    content.sendAll:SetText(busy and "Stop" or "Send All")
+    content.sendAll:SetEnabled(busy or anySendable)
+    content.reviewAll:SetEnabled(anySendable and not busy)
+    content.status:SetText(statusText())
 end
 
 ns:RegisterEvent("MAIL_SHOW", function()
-    if not ns.db or not ns.db.showPanel then return end
-    if not panel then createPanel() end
-    panel:Show()
-    ns:RefreshMailPanel()
+    dockedClosed = false
+    if content then place() end
 end)
-
 ns:RegisterEvent("BAG_UPDATE_DELAYED", function() ns:RefreshMailPanel() end)
+-- A First Aid skill-up can move the kept cloth to the next tier.
+ns:RegisterEvent("SKILL_LINES_CHANGED", function() ns:RefreshMailPanel() end)
 
 -- BoE detection needs item info that may not be cached on first scan. These
 -- events can arrive in bursts, so refresh at most once per short delay.
 local refreshQueued = false
 ns:RegisterEvent("GET_ITEM_INFO_RECEIVED", function()
-    if refreshQueued or not (panel and panel:IsShown()) then return end
+    if refreshQueued or not (content and content:IsVisible()) then return end
     refreshQueued = true
     C_Timer.After(0.2, function()
         refreshQueued = false

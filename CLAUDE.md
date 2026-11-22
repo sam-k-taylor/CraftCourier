@@ -1,6 +1,6 @@
 # CraftCourier
 
-A World of Warcraft addon in Lua that mails crafting materials and unbound BoE gear to alts the user has assigned to each category. Users configure it in a settings window, and it acts from a panel docked to the mailbox.
+A World of Warcraft addon in Lua that mails crafting materials and unbound BoE gear to alts the user has assigned to each category. It extends Blizzard's mailbox: double width, a scrolling inbox with a summary, the send panel in the Send Mail tab, and a Settings tab.
 
 ## Target client
 
@@ -22,13 +22,15 @@ A World of Warcraft addon in Lua that mails crafting materials and unbound BoE g
 | `package.sh` | Builds the release zip (see Releasing) |
 | `Media/Icon.tga` | AddOns list icon (`## IconTexture`), 64×64 TGA rendered from `logo.svg` |
 | `Core.lua` | `ns` setup, `CraftCourierDB` defaults, API shims, the event and message bus, `ns:GetPlayerName()` / `ns:IsSelf()`, slash commands (including `item` and `debug` for diagnostics) |
-| `Categories.lua` | `ns.categories` (also sets the UI order), `ns:Classify`, `ns:ScanBags`, `ns:CategoryDisplayName`. BoE categories have a `quality` field. `Classify` checks for BoE (`bindType == Enum.ItemBind.OnEquip`) before trade goods. |
+| `Categories.lua` | `ns.categories` (also sets the UI order), `ns:Classify`, `ns:ScanBags`, `ns:CategoryDisplayName`. BoE categories have a `quality` field. `Classify` checks for BoE (`bindType == Enum.ItemBind.OnEquip`) before trade goods. Consumable / Scroll items (class 0/4) go to `scrolls` (Comprehension Scrolls) if named "Scroll: …" (the undeciphered drops) or if their tooltip has the Mage-only `ITEM_CLASSES_ALLOWED` line or "Requires Comprehension" (`ITEM_MIN_SKILL`) (`C_TooltipInfo.GetItemByID`; only hits are cached). Other consumables are skipped. With `db.keepFirstAidCloth`, `ScanBags` leaves out the cloth for the character's current First Aid bracket and every higher one (`ns:FirstAidClothKept()` returns a set of itemIDs; skill line 129 via `C_SkillInfo`). Brackets: Linen <81, Wool <151, Silk <211, Mageweave <261, Runecloth <300. |
 | `Mailer.lua` | `ns.Mailer` queue: `Queue(keys)`, `Start(mode)` where `mode` is `"auto"` or `"review"`, `Stop(reason, clearForm)` |
 | `Log.lua` | Hooks `SendMail` to read the attachments while the Mailer is busy, then commits the entry on `MAIL_SEND_SUCCESS` (and drops it on `MAIL_FAILED`). Capped at 1000 entries. |
 | `UI/LogWindow.lua` | Log window (`ns:ToggleLog()`), a `WowScrollBoxList` with a filter |
-| `UI/MailPanel.lua` | Mailbox panel, rebuilt by `ns:RefreshMailPanel()` |
+| `UI/Mailbox.lua` | Extends `MailFrame` when `db.extendMailbox` is on: doubles its width, pins `SendMailFrame` to the original width, adds a Settings tab (hooks `MailFrameTab_OnClick`, never writes `MailFrame.activeSubFrame`). `ns:ShowSettings()`. Turning it off restores Blizzard's layout. |
+| `UI/Inbox.lua` | `ns:SetInboxExtended(on)`: summary and one `WowScrollBoxList` of every mail inside `InboxFrame`. Blizzard's paged widgets are reparented to a hidden frame (its code keeps calling `Show` on them). Refreshes from a hook on `InboxFrame:Update`; opening a mail goes through `InboxFrame_OnClick`. |
+| `UI/MailPanel.lua` | Send panel, rebuilt by `ns:RefreshMailPanel()`. `ns:PlaceMailPanel(extended)` records the mode; `place()` (rerun from `OnShow`/`OnHide` hooks on `InboxFrame`, `SendMailFrame` and `OpenMailFrame`) puts it in the right half of the Send Mail tab when extended, otherwise in the docked `CraftCourierMailPanel` window. Docked shows if `db.showPanel`, not on the extended Settings tab, and not while a letter is open (the letter opens where it sits). |
 | `UI/Suggest.lua` | Recipient suggestions: `ns:GetRecipientCandidates(text)`, `ns:AttachSuggestions(editBox)`. Sources: `C_AutoComplete.GetAutoCompleteResults` with `AUTOCOMPLETE_LIST.MAIL` (the same as Blizzard's mail box), recorded alts, existing recipients, friends list, Battle.net. `collectBlocked()` hides characters known to be on another realm or faction (friends via GUID server ID and race, Battle.net via `realmID` and `factionName`, as Blizzard's Camelot FriendsFrame does). |
-| `UI/Config.lua` | One recipient form (`buildForm`) used in two places: a canvas page in Options → AddOns (`ns:OpenSettingsPanel()`), and a small window (`ns:ToggleConfig()`, used by the slash command and the mailbox panel). Both reload on `CONFIG_CHANGED`. |
+| `UI/Config.lua` | One recipient form (`buildForm`, exposed as `ns:BuildConfigForm`, optionally in columns) used in three places: the mailbox Settings tab, a canvas page in Options → AddOns (`ns:OpenSettingsPanel()`), and a small window (`ns:ToggleConfig()`, used by the slash command and the docked panel). All reload on `CONFIG_CHANGED`. |
 
 ## Conventions
 
@@ -55,7 +57,9 @@ recipients = { [categoryKey] = "Name" | "Name-Realm" }
 overrides  = { [itemID] = categoryKey | "ignore" }
 characters = { ["Name Surname-Realm"] = { name, realm, class, faction } } -- recorded on PLAYER_LOGIN; name includes the surname
 log        = { { time, from, realm, to, mode, items = { {id, name, icon, count} } } } -- oldest first
-showPanel  = true
+showPanel  = true  -- docked panel; on the Inbox tab only when extendMailbox is on
+extendMailbox = true
+keepFirstAidCloth = false  -- don't mail cloth this character's First Aid still needs (current bracket and up)
 ```
 
 If you change this shape, add a migration in the `ADDON_LOADED` handler in `Core.lua`.
@@ -67,6 +71,7 @@ There are no automated tests. Test in game:
 1. Copy or symlink the repo into `Interface/AddOns/CraftCourier`, then run `/reload` after each change. Adding or renaming a file in the TOC needs a full game restart, not just `/reload`.
 2. Turn on Lua errors with `/console scriptErrors 1`, or use BugSack.
 3. Open a mailbox carrying several material types, more than 12 stacks of at least one of them, and a soulbound item. Check the counts, tooltips, chunking, Send All grouping, and that closing the mailbox mid-send stops cleanly.
+4. With more than 7 mails (ideally more than the server sends at once), check the inbox summary, scrolling, Take, shift-click, opening a mail, and COD mail. Toggle **Extend the mailbox** off and on with the mailbox open and check that Blizzard's layout comes back intact.
 
 ## Releasing
 

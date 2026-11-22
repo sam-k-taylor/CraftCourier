@@ -7,7 +7,9 @@ local defaults = {
     overrides = {},  -- [itemID] = categoryKey or "ignore"
     characters = {}, -- ["Name-Realm"] = { name, realm, class, faction }; every alt seen with the addon
     log = {},        -- sent mails, oldest first: { time, from, realm, to, mode, items = { {id, name, icon, count} } }
-    showPanel = true,
+    showPanel = true,      -- docked panel beside the mailbox (only on the Inbox tab when extendMailbox is on)
+    keepFirstAidCloth = false, -- don't mail cloth this character's First Aid still needs (current bracket and up)
+    extendMailbox = true,  -- widen Blizzard's mailbox and add the inbox list, send panel and Settings tab
 }
 
 function ns:Print(...)

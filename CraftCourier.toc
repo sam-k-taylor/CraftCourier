@@ -17,3 +17,5 @@ UI\MailPanel.lua
 UI\Suggest.lua
 UI\Config.lua
 UI\LogWindow.lua
+UI\Inbox.lua
+UI\Mailbox.lua
