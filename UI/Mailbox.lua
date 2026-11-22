@@ -59,8 +59,9 @@ local function createSettingsPage()
     hint:SetPoint("TOPLEFT", 16, -14)
     hint:SetText("Who should receive each material? Start typing for suggestions from your alts and friends.")
 
-    local half = (baseWidth * 2 - 8) / 2
-    ns:BuildConfigForm(settingsPage, 44, { labelX = 16, boxX = 170, columns = 2, columnWidth = half })
+    -- Scrolls above the Open Log button; leave room for the scroll bar.
+    local half = (baseWidth * 2 - 8 - 28) / 2
+    ns:BuildConfigForm(settingsPage, 44, { labelX = 16, boxX = 170, boxWidth = 134, columns = 2, columnWidth = half, bottom = 40 })
 
     local log = CreateFrame("Button", nil, settingsPage, "UIPanelButtonTemplate")
     log:SetSize(120, 22)

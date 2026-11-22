@@ -5,6 +5,20 @@ local METAL_AND_STONE = 7
 local CONSUMABLE = (Enum and Enum.ItemClass and Enum.ItemClass.Consumable) or 0
 local CONSUMABLE_SCROLL = (Enum and Enum.ItemConsumableSubclass and Enum.ItemConsumableSubclass.Scroll) or 4
 local MAGE_CLASS_ID = 8
+local RECIPE = (Enum and Enum.ItemClass and Enum.ItemClass.Recipe) or 9
+
+-- Recipe subclass -> plans category. Enum.ItemRecipeSubclass values; Books (0),
+-- Fishing (9) and the professions Forever doesn't have are left unmailed.
+local recipeSubclassMap = {
+    [1] = "plans_leatherworking",
+    [2] = "plans_tailoring",
+    [3] = "plans_engineering",
+    [4] = "plans_blacksmithing",
+    [5] = "plans_cooking",
+    [6] = "plans_alchemy",
+    [7] = "plans_firstaid",
+    [8] = "plans_enchanting",
+}
 
 -- Display order matters: it is the order rows appear in the UI.
 ns.categories = {
@@ -19,10 +33,23 @@ ns.categories = {
     { key = "elemental",   label = "Elemental",   icon = "Interface\\Icons\\INV_Elemental_Primal_Fire" },
     { key = "cooking",     label = "Cooking",     icon = "Interface\\Icons\\INV_Misc_Food_15" },
     { key = "parts",       label = "Parts",       icon = "Interface\\Icons\\INV_Misc_Gear_01" },
+    -- Red Dye's own icon (a file ID works anywhere a texture path does).
+    { key = "dyes",        label = "Dyes",        icon = (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(2604)) or "Interface\\Icons\\INV_Misc_Bag_10" },
     { key = "other",       label = "Other Trade Goods", icon = "Interface\\Icons\\INV_Misc_Bag_10" },
 
     -- Mage-only scrolls for the Forever Comprehension skill, deciphered or not.
     { key = "scrolls",     label = "Comprehension Scrolls", icon = "Interface\\Icons\\INV_Scroll_03" },
+
+    -- One per profession: its plans (patterns, recipes...) and the vendor
+    -- reagents it uses, sent to whoever has the profession.
+    { key = "plans_alchemy",        label = "Alchemist",            icon = "Interface\\Icons\\Trade_Alchemy" },
+    { key = "plans_blacksmithing",  label = "Blacksmith",           icon = "Interface\\Icons\\Trade_BlackSmithing" },
+    { key = "plans_enchanting",     label = "Enchanter",            icon = "Interface\\Icons\\Trade_Engraving" },
+    { key = "plans_engineering",    label = "Engineer",             icon = "Interface\\Icons\\Trade_Engineering" },
+    { key = "plans_leatherworking", label = "Leatherworker",        icon = "Interface\\Icons\\INV_Misc_ArmorKit_17" },
+    { key = "plans_tailoring",      label = "Tailor",               icon = "Interface\\Icons\\Trade_Tailoring" },
+    { key = "plans_cooking",        label = "Cook",                 icon = "Interface\\Icons\\INV_Scroll_06" },
+    { key = "plans_firstaid",       label = "First Aid",            icon = "Interface\\Icons\\Spell_Holy_SealOfSacrifice" },
 
     -- Unbound Bind on Equip items, one category per quality.
     { key = "boe_uncommon",  label = "BoE Uncommon",  icon = "Interface\\Icons\\INV_Sword_04", quality = 2 },
@@ -188,8 +215,45 @@ local waylaidCrates = {
     [248713] = "parts",       -- Artisan Parts
 }
 
-local function classifyWaylaidCrate(db, itemID)
-    local target = waylaidCrates[itemID]
+-- Vendor-bought reagents (Trade Goods / Other, which would otherwise land in
+-- "Other Trade Goods") go to the profession that uses them. Items more than
+-- one profession uses list them in order and go to the first with a recipient.
+local ALCHEMY_VIAL = { "plans_alchemy", "plans_enchanting" }
+local FLUX         = { "plans_blacksmithing", "plans_engineering" }
+local THREAD       = { "plans_tailoring", "plans_leatherworking" }
+local professionSupplies = {
+    [3371]  = ALCHEMY_VIAL, -- Empty Vial
+    [3372]  = ALCHEMY_VIAL, -- Leaded Vial
+    [8925]  = ALCHEMY_VIAL, -- Crystal Vial
+    [18256] = ALCHEMY_VIAL, -- Imbued Vial
+    [2880]  = FLUX,         -- Weak Flux
+    [3466]  = FLUX,         -- Strong Flux
+    [3857]  = FLUX,         -- Coal
+    [2320]  = THREAD,       -- Coarse Thread
+    [2321]  = THREAD,       -- Fine Thread
+    [4291]  = THREAD,       -- Silken Thread
+    [8343]  = THREAD,       -- Heavy Silken Thread
+    [14341] = THREAD,       -- Rune Thread
+    [2604]  = "dyes",       -- Red Dye
+    [2605]  = "dyes",       -- Green Dye
+    [2325]  = "dyes",       -- Black Dye
+    [4340]  = "dyes",       -- Gray Dye
+    [4341]  = "dyes",       -- Yellow Dye
+    [4342]  = "dyes",       -- Purple Dye
+    [6260]  = "dyes",       -- Blue Dye
+    [6261]  = "dyes",       -- Orange Dye
+    [10290] = "dyes",       -- Pink Dye
+    [4289]  = "plans_leatherworking", -- Salt
+    [6217]  = "plans_enchanting",     -- Copper Rod
+    [4470]  = "plans_enchanting",     -- Simple Wood
+    [11291] = { "plans_enchanting", "plans_engineering" }, -- Star Wood
+    [7191]  = "plans_engineering",    -- Fused Wiring
+    [4399]  = "plans_engineering",    -- Wooden Stock
+    [4400]  = "plans_engineering",    -- Heavy Stock
+}
+
+-- A category key, or a list of keys: the first with a recipient, else the first.
+local function pickCategory(db, target)
     if type(target) ~= "table" then return target end
     for _, key in ipairs(target) do
         if db.recipients[key] and db.recipients[key] ~= "" then return key end
@@ -206,13 +270,18 @@ function ns:Classify(itemID, name, quality)
         return override
     end
 
-    local crate = classifyWaylaidCrate(self.db, itemID)
-    if crate then return crate end
+    local fixed = pickCategory(self.db, waylaidCrates[itemID] or professionSupplies[itemID])
+    if fixed then return fixed end
+
+    -- Plans before BoE: many are Bind on Equip, and belong with the profession.
+    local _, _, _, _, _, classID, subclassID = self.GetItemInfoInstant(itemID)
+    if classID == RECIPE then
+        return recipeSubclassMap[subclassID]
+    end
 
     local boe = classifyBoE(itemID, quality)
     if boe then return boe end
 
-    local _, _, _, _, _, classID, subclassID = self.GetItemInfoInstant(itemID)
     if classID == CONSUMABLE then
         if subclassID == CONSUMABLE_SCROLL and isComprehensionScroll(itemID, name) then
             return "scrolls"

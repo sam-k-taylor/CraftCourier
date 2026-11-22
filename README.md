@@ -76,6 +76,10 @@ Apart from those, only items in the **Trade Goods** item class are considered. T
 
 **Comprehension Scrolls** are the Mage-only scrolls for the Forever Comprehension skill: the undeciphered "Scroll: …" drops and the scrolls they decipher into. Among items in the Consumable / Scroll subclass, CraftCourier picks out those named "Scroll: …" and those whose tooltip says *Classes: Mage* (in the client's language) or *Requires Comprehension*. Other consumables aren't sent.
 
+**Plans** (items in the Recipe class: plans, patterns, schematics, formulas, recipes and manuals) are sorted by recipe subclass into one category per profession: **Alchemist**, **Blacksmith**, **Enchanter**, **Engineer**, **Leatherworker**, **Tailor**, **Cook** and **First Aid**. They're checked before BoE gear, so Bind on Equip plans go to the profession rather than to a BoE category. Fishing books and other Book items aren't sent.
+
+The same profession categories also get the vendor reagents each profession uses, matched by item ID: vials go to Alchemist, flux and coal to Blacksmith, thread to Tailor, salt to Leatherworker, Copper Rods and Simple Wood to Enchanter, and Fused Wiring and gun stocks to Engineer. Items that more than one profession uses go to the first one with a recipient: vials go to the Enchanter if there's no Alchemist, flux and coal to the Engineer, and thread to the Leatherworker. Dyes, which several professions use, have their own **Dyes** category.
+
 **Waylaid Crates** that you've identified go to whoever holds what fills them, going by each crate's fill list: Herbs to **Herbs**, Ore to **Ore**, Ingots to **Bars**, Parts to **Parts** and Curiosities to **Enchanting**. Textiles and Fabrics take cloth or leather, so they go to **Cloth**, or to **Leather** if only Leather has a recipient. The crates are matched by item ID. The unidentified Waylaid Crate isn't sent.
 
 If an item lands in the wrong place, use `/craftcourier assign`.
@@ -101,6 +105,7 @@ UI/Config.lua      Recipient form, shown on the Settings tab, the Options > AddO
 .pkgmeta           CurseForge/BigWigs packager config
 package.sh         Builds the release zip into .release/
 CURSE.md           CurseForge project description
+docs/items.md      Item reference: where the item-ID tables come from and why each item maps where it does
 .github/           Issue forms: missing category, item not picked up, wrong category
 LICENSE            MIT License
 logo.svg/.png      Project logo (400x400 PNG for CurseForge, rendered from the SVG)

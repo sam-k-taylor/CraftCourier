@@ -11,13 +11,35 @@ local forms = {}
 local category
 local window
 
--- Builds the recipient rows and the mailbox toggles into `parent`, starting at
--- `top`. opts: labelX, boxX (relative to each column), columns, columnWidth.
--- Returns a form object with a Load() method.
-local function buildForm(parent, top, opts)
+local TOGGLE_COUNT = 3
+-- ScrollFrameTemplate puts its scroll bar just outside the frame's right edge.
+local SCROLLBAR_SPACE = 28
+
+local function formHeight(columns)
+    return math.ceil(#ns.categories / (columns or 1)) * ROW_HEIGHT + 4 + TOGGLE_COUNT * ROW_HEIGHT
+end
+
+-- Builds the recipient rows and the mailbox toggles into `host`, starting at
+-- `top`. opts: labelX, boxX (relative to each column), boxWidth, columns,
+-- columnWidth, and `bottom`: if set, the form scrolls in a frame that ends
+-- `bottom` pixels above the host's bottom edge (there are too many categories
+-- to fit the smaller hosts). Returns a form object with a Load() method.
+local function buildForm(host, top, opts)
     local form = { boxes = {}, toggles = {} }
     local columns = opts.columns or 1
     local perColumn = math.ceil(#ns.categories / columns)
+
+    local parent = host
+    if opts.bottom then
+        local scroll = CreateFrame("ScrollFrame", nil, host, "ScrollFrameTemplate")
+        scroll:SetPoint("TOPLEFT", 0, -top)
+        scroll:SetPoint("BOTTOMRIGHT", -SCROLLBAR_SPACE, opts.bottom)
+        parent = CreateFrame("Frame", nil, scroll)
+        parent:SetSize(1, formHeight(columns))
+        scroll:SetScrollChild(parent)
+        scroll:HookScript("OnSizeChanged", function(_, width) parent:SetWidth(width) end)
+        top = 0
+    end
 
     local function save(box)
         local text = strtrim(box:GetText() or "")
@@ -35,7 +57,7 @@ local function buildForm(parent, top, opts)
         label:SetText(("|T%s:16|t %s"):format(cat.icon, ns:CategoryDisplayName(cat)))
 
         local box = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
-        box:SetSize(170, 20)
+        box:SetSize(opts.boxWidth or 170, 20)
         box:SetPoint("TOPLEFT", x + opts.boxX, y)
         box:SetAutoFocus(false)
         box.categoryKey = cat.key
@@ -87,11 +109,11 @@ local function buildForm(parent, top, opts)
     end
 
     -- Load now and again next frame, once the parent has been sized and laid out.
-    parent:HookScript("OnShow", function()
+    host:HookScript("OnShow", function()
         form:Load()
         C_Timer.After(0, function() form:Load() end)
     end)
-    parent:HookScript("OnHide", function() ns:HideSuggestions() end)
+    host:HookScript("OnHide", function() ns:HideSuggestions() end)
     table.insert(forms, form)
     return form
 end
@@ -101,10 +123,6 @@ function ns:BuildConfigForm(parent, top, opts)
     return buildForm(parent, top, opts)
 end
 
--- Height of a form built with the given number of columns.
-function ns:ConfigFormHeight(columns)
-    return math.ceil(#ns.categories / (columns or 1)) * ROW_HEIGHT + 4 + 3 * ROW_HEIGHT
-end
 
 ---------------------------------------------------------------------------
 -- Options > AddOns panel
@@ -123,7 +141,7 @@ local function createSettingsPanel()
     hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
     hint:SetText("Who should receive each material? Start typing for suggestions from your alts and friends.")
 
-    local form = buildForm(panel, 70, { labelX = 20, boxX = 200 })
+    local form = buildForm(panel, 70, { labelX = 20, boxX = 200, bottom = 16 })
 
     -- Settings panel callbacks (see Blizzard_Settings_Shared/Blizzard_ImplementationReadme.lua).
     function panel:OnRefresh()
@@ -149,7 +167,8 @@ end
 
 local function createWindow()
     window = CreateFrame("Frame", "CraftCourierConfigFrame", UIParent, "BasicFrameTemplateWithInset")
-    window:SetSize(470, 56 + ns:ConfigFormHeight(1) + 16)
+    -- Capped so it fits small screens; the form scrolls past that.
+    window:SetSize(470 + SCROLLBAR_SPACE, math.min(56 + formHeight(1) + 16, 560))
     window:SetPoint("CENTER")
     window:SetFrameStrata("DIALOG")
     window:SetMovable(true)
@@ -172,7 +191,7 @@ local function createWindow()
     hint:SetPoint("TOPLEFT", 16, -32)
     hint:SetText("Recipient for each material (Name or Name-Realm):")
 
-    buildForm(window, 56, { labelX = 16, boxX = 150 })
+    buildForm(window, 56, { labelX = 16, boxX = 150, bottom = 12 })
 end
 
 ---------------------------------------------------------------------------
