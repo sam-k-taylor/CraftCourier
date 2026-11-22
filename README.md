@@ -76,6 +76,8 @@ Apart from those, only items in the **Trade Goods** item class are considered. T
 
 **Comprehension Scrolls** are the Mage-only scrolls for the Forever Comprehension skill: the undeciphered "Scroll: …" drops and the scrolls they decipher into. Among items in the Consumable / Scroll subclass, CraftCourier picks out those named "Scroll: …" and those whose tooltip says *Classes: Mage* (in the client's language) or *Requires Comprehension*. Other consumables aren't sent.
 
+**Waylaid Crates** that you've identified go to whoever holds what fills them, going by each crate's fill list: Herbs to **Herbs**, Ore to **Ore**, Ingots to **Bars**, Parts to **Parts** and Curiosities to **Enchanting**. Textiles and Fabrics take cloth or leather, so they go to **Cloth**, or to **Leather** if only Leather has a recipient. The crates are matched by item ID. The unidentified Waylaid Crate isn't sent.
+
 If an item lands in the wrong place, use `/craftcourier assign`.
 
 ## Reporting issues

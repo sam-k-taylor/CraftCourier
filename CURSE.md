@@ -16,6 +16,7 @@ CraftCourier attaches the stacks, fills each mail to the 12-attachment limit and
 
 - **12 material types:** Cloth, Leather, Herbs, Ore, Bars, Stone, Gems, Enchanting, Elemental, Cooking, Parts and Other Trade Goods.
 - **Comprehension Scrolls:** send the Mage-only scrolls you loot (deciphered or not) to your mage.
+- **Waylaid Crates:** identified crates go to the alt who holds what fills them (Herbs crates to your herb alt, Ingots to your bars alt and so on).
 - **BoE gear by rarity:** send unbound Bind on Equip items to a different alt for each rarity (Uncommon, Rare, Epic). Ideal for an auction alt or a disenchanter.
 - **One Click Send** or **Review and Send** for every material type, right inside the mailbox.
 - **A better inbox:** the mail window is twice as wide, with a summary of your mail (how many, items, gold, COD and anything about to expire) and one scrolling list of every mail, with no pages. Take a whole mail with one click, or just one attachment.

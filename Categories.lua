@@ -150,6 +150,53 @@ local function isComprehensionScroll(itemID, name)
     return isMageOnly(itemID)
 end
 
+-- Identified Waylaid Crates go to whoever holds what fills them (per each
+-- crate's "Fill the crate with any bundle" list). Textiles and Fabrics take
+-- cloth or leather, so they list both and go to the first one with a recipient.
+-- The unidentified Waylaid Crate (248549) has no fill list and isn't mailed.
+local TEXTILES = { "cloth", "leather" }
+local waylaidCrates = {
+    [248682] = "herbs",       -- Apprentice Herbs
+    [248683] = "ore",         -- Apprentice Ore
+    [248684] = TEXTILES,      -- Apprentice Textiles
+    [248685] = "enchanting",  -- Apprentice Curiosities
+    [248686] = "herbs",       -- Journeyman Herbs
+    [248687] = "ore",         -- Journeyman Ore
+    [248688] = TEXTILES,      -- Journeyman Textiles
+    [248689] = "enchanting",  -- Journeyman Curiosities
+    [248690] = "herbs",       -- Earthly Expert Herbs
+    [248691] = "herbs",       -- Flowering Expert Herbs
+    [248692] = "ore",         -- Expert Ore
+    [248693] = TEXTILES,      -- Expert Textiles
+    [248694] = "enchanting",  -- Expert Curiosities
+    [248695] = "herbs",       -- Earthly Artisan Herbs
+    [248696] = "herbs",       -- Flowering Artisan Herbs
+    [248697] = "ore",         -- Artisan Ore
+    [248698] = TEXTILES,      -- Artisan Textiles
+    [248699] = "enchanting",  -- Artisan Curiosities
+    [248702] = TEXTILES,      -- Apprentice Fabrics (bolts or cured hides)
+    [248703] = "bars",        -- Apprentice Ingots
+    [248704] = "parts",       -- Apprentice Parts
+    [248705] = TEXTILES,      -- Journeyman Fabrics
+    [248706] = "bars",        -- Journeyman Ingots
+    [248707] = "parts",       -- Journeyman Parts
+    [248708] = TEXTILES,      -- Expert Fabrics
+    [248709] = "bars",        -- Expert Ingots
+    [248710] = "parts",       -- Expert Parts
+    [248711] = TEXTILES,      -- Artisan Fabrics
+    [248712] = "bars",        -- Artisan Ingots
+    [248713] = "parts",       -- Artisan Parts
+}
+
+local function classifyWaylaidCrate(db, itemID)
+    local target = waylaidCrates[itemID]
+    if type(target) ~= "table" then return target end
+    for _, key in ipairs(target) do
+        if db.recipients[key] and db.recipients[key] ~= "" then return key end
+    end
+    return target[1]
+end
+
 -- Returns the category key for an item, or nil if CraftCourier should not mail it.
 -- `quality` comes from the bag slot; bound items never reach this.
 function ns:Classify(itemID, name, quality)
@@ -158,6 +205,9 @@ function ns:Classify(itemID, name, quality)
         if override == "ignore" then return nil end
         return override
     end
+
+    local crate = classifyWaylaidCrate(self.db, itemID)
+    if crate then return crate end
 
     local boe = classifyBoE(itemID, quality)
     if boe then return boe end
