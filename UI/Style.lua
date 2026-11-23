@@ -69,14 +69,16 @@ Style.THEMES = {
         chrome = "custom", edge = "round", close = "seal", titleStrip = false, underlineInputs = true,
         -- Dark ink on a light page: the game fonts' black drop shadow smears.
         noShadow = true,
-        bg = rgb("f0dfb4", 0.98), border = GOLD, inner = rgb("7a5a2a", 0.5),
+        -- Aged parchment rather than the logo's near-white envelope, which
+        -- was glaring across whole windows. Ink still reads strongly on it.
+        bg = rgb("cdb78c", 0.98), border = GOLD, inner = rgb("6b4e22", 0.6),
         titleText = INK,
         text = INK, muted = BRONZE, heading = INK, hint = BRONZE,
         line = rgb("7a5a2a", 0.6),
         inputBg = { 0, 0, 0, 0 }, inputBorder = rgb("7a5a2a"), inputText = rgb("2a1800"),
-        buttonBg = PARCHMENT_DARK, buttonBorder = rgb("7a5a2a"), buttonHover = GOLD, buttonText = INK,
-        stripe = rgb("7a5a2a", 0.08), selected = rgb("b8862b", 0.25),
-        groove = PARCHMENT_DARK, grooveBorder = rgb("7a5a2a"), fill = GOLD,
+        buttonBg = rgb("b9a174"), buttonBorder = rgb("6b4e22"), buttonHover = GOLD, buttonText = INK,
+        stripe = rgb("6b4e22", 0.1), selected = rgb("8a6420", 0.25),
+        groove = rgb("b9a174"), grooveBorder = rgb("6b4e22"), fill = rgb("8a6420"),
         -- Darker status colours that still read on parchment.
         good = rgb("1f6b1f"), warn = rgb("a05200"), bad = rgb("a01818"),
         -- Class colours are unreadable on parchment: names stay in ink with a class icon.
