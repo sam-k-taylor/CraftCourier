@@ -1037,7 +1037,7 @@ local function createCloseButton(frame, close)
         local seal = t.close == "seal"
         for _, tex in ipairs({ self.rim, self.wax, self.ring, self.core }) do tex:SetShown(seal) end
         if seal then
-            local size = compact and 20 or 24
+            local size = compact and 18 or 24
             self:SetSize(size, size)
             self.ring:ClearAllPoints()
             self.ring:SetPoint("TOPLEFT", size * 0.2, -size * 0.2)
@@ -1134,25 +1134,30 @@ local function buildChrome(frame, bgFrame, title, close, compact)
         closeButton:ClearAllPoints()
         closeButton:Apply(t, compact)
         local font = compact and GameFontNormal or GameFontNormalLarge
+        -- The title bar sits just inside the innermost border line, so it
+        -- never covers the border (it's drawn above it). Compact bars are 20
+        -- tall to end before 30px, where Blizzard's mail content starts.
+        local g = outlineGeometry(t)
+        local inset = t.inner and (g.innerD + g.innerWidth / 2 + 1.5) or (g.d + g.width / 2 + 0.5)
         if t.key == "flat" then
-            strip:SetPoint("TOPLEFT", 1, -1)
-            strip:SetPoint("TOPRIGHT", -1, -1)
-            strip:SetHeight(compact and 22 or 26)
+            strip:SetPoint("TOPLEFT", inset, -inset)
+            strip:SetPoint("TOPRIGHT", -inset, -inset)
+            strip:SetHeight(compact and 20 or 24)
             titleText:SetFontObject(GameFontNormal)
             logo:SetSize(16, 16)
         elseif t.titleStrip then
-            local pad = compact and 6 or 9
-            strip:SetPoint("TOPLEFT", pad, -pad + (compact and 1 or 0))
-            strip:SetPoint("TOPRIGHT", -pad, -pad + (compact and 1 or 0))
-            strip:SetHeight(compact and 22 or 34)
+            strip:SetPoint("TOPLEFT", inset, -inset)
+            strip:SetPoint("TOPRIGHT", -inset, -inset)
+            strip:SetHeight(compact and 20 or 34)
             titleText:SetFontObject(font)
             logo:SetSize(compact and 16 or 24, compact and 16 or 24)
         else -- letter: title written on the page, a rule under it
-            strip:SetPoint("TOPLEFT", compact and 10 or 14, compact and -4 or -12)
-            strip:SetPoint("TOPRIGHT", compact and -10 or -14, compact and -4 or -12)
-            strip:SetHeight(compact and 22 or 36)
+            local x, y = compact and inset + 1 or math.max(inset, 14), compact and inset or math.max(inset, 12)
+            strip:SetPoint("TOPLEFT", x, -y)
+            strip:SetPoint("TOPRIGHT", -x, -y)
+            strip:SetHeight(compact and 20 or 36)
             titleText:SetFontObject(font)
-            logo:SetSize(compact and 18 or 28, compact and 18 or 28)
+            logo:SetSize(compact and 16 or 28, compact and 16 or 28)
         end
         -- After SetFontObject, which resets colour and shadow.
         titleText:SetTextColor(unpack(t.titleText))
