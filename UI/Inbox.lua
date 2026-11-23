@@ -70,13 +70,13 @@ local function plural(n, word)
     return ("|cffffffff%d|r %s%s"):format(n, word, n == 1 and "" or "s")
 end
 
-local function expiryText(days)
+local function expiryText(days, scope)
     if days >= 1 then
-        local color = days < EXPIRY_WARN_DAYS and "|cffff9900" or "|cff20ff20"
-        return color .. (DAYS_ABBR and DAYS_ABBR:format(math.floor(days)) or ("%dd"):format(days)) .. "|r"
+        local text = DAYS_ABBR and DAYS_ABBR:format(math.floor(days)) or ("%dd"):format(days)
+        return ns.Style.Colorize(text, days < EXPIRY_WARN_DAYS and "warn" or "good", scope)
     end
     local seconds = math.floor(days * 24 * 60 * 60)
-    return "|cffff2020" .. (SecondsToTime and SecondsToTime(seconds) or ("%dm"):format(seconds / 60)) .. "|r"
+    return ns.Style.Colorize(SecondsToTime and SecondsToTime(seconds) or ("%dm"):format(seconds / 60), "bad", scope)
 end
 
 local function qualityColor(quality)
@@ -151,7 +151,7 @@ local function showMailTooltip(row)
     end
     GameTooltip:AddLine(" ")
     local fate = InboxItemCanDelete(mail.index) and "Deleted in " or "Returned in "
-    GameTooltip:AddLine(fate .. expiryText(mail.daysLeft), 1, 1, 1)
+    GameTooltip:AddLine(fate .. expiryText(mail.daysLeft, "blizzard"), 1, 1, 1) -- Blizzard's tooltip
     GameTooltip:AddLine("Click to open. Shift-click to take everything.", 0.6, 0.6, 0.6)
     GameTooltip:Show()
 end
@@ -187,15 +187,7 @@ local function buildRow(row)
     end)
     row:SetScript("OnEnter", showMailTooltip)
     row:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
-
-    row.stripe = row:CreateTexture(nil, "BACKGROUND")
-    row.stripe:SetAllPoints()
-    row.stripe:SetColorTexture(1, 1, 1, 0.04)
-
-    row.selected = row:CreateTexture(nil, "BACKGROUND", nil, 1)
-    row.selected:SetAllPoints()
-    row.selected:SetColorTexture(1, 0.82, 0, 0.15)
+    ns.Style.DecorateRow(row)
 
     row.icon = row:CreateTexture(nil, "ARTWORK")
     row.icon:SetSize(ICON_SIZE, ICON_SIZE)
@@ -204,13 +196,14 @@ local function buildRow(row)
     row.count = row:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
     row.count:SetPoint("BOTTOMRIGHT", row.icon, "BOTTOMRIGHT", -1, 2)
 
-    row.sender = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    -- Colours are set per mail (read or unread); Text adds the style's shadow rule.
+    row.sender = ns.Style.Text(row:CreateFontString(nil, "OVERLAY", "GameFontNormal"), "heading")
     row.sender:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 8, -2)
     row.sender:SetWidth(ATTACH_X - ICON_SIZE - 20)
     row.sender:SetJustifyH("LEFT")
     row.sender:SetWordWrap(false)
 
-    row.subject = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.subject = ns.Style.Text(row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"), "text")
     row.subject:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMRIGHT", 8, 3)
     row.subject:SetWidth(ATTACH_X - ICON_SIZE - 20)
     row.subject:SetJustifyH("LEFT")
@@ -220,11 +213,10 @@ local function buildRow(row)
     for i = 1, MAX_ATTACH_ICONS do
         row.attach[i] = createAttachButton(row, i)
     end
-    row.more = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.more = ns.Style.Text(row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"), "muted")
     row.more:SetPoint("LEFT", row.attach[MAX_ATTACH_ICONS], "RIGHT", 4, 0)
 
-    row.take = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-    row.take:SetSize(64, 22)
+    row.take = ns.Style.Button(row, "Take", 64, 22)
     row.take:SetPoint("RIGHT", -6, 0)
     row.take:SetScript("OnClick", function(self) takeAll(self:GetParent().mail) end)
 
@@ -233,7 +225,7 @@ local function buildRow(row)
     row.expiry:SetWidth(70)
     row.expiry:SetJustifyH("RIGHT")
 
-    row.money = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.money = ns.Style.Text(row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall"), "text")
     row.money:SetPoint("RIGHT", row.expiry, "LEFT", -10, 0)
     row.money:SetWidth(120)
     row.money:SetJustifyH("RIGHT")
@@ -243,7 +235,7 @@ local function initRow(row, mail)
     if not row.icon then buildRow(row) end
     row.mail = mail
 
-    row.stripe:SetShown(mail.index % 2 == 0)
+    ns.Style.SetRowStripe(row, mail.index)
     row.selected:SetShown(isOpen(mail.index))
 
     row.icon:SetTexture(mail.icon)
@@ -251,13 +243,9 @@ local function initRow(row, mail)
     row.count:SetText(mail.itemTotal > 1 and mail.itemTotal or "")
 
     row.sender:SetText(mail.sender)
-    if mail.wasRead then
-        row.sender:SetTextColor(0.75, 0.75, 0.75)
-        row.subject:SetTextColor(0.75, 0.75, 0.75)
-    else
-        row.sender:SetTextColor(1, 0.82, 0)
-        row.subject:SetTextColor(1, 1, 1)
-    end
+    local t = ns.Style.Theme()
+    row.sender:SetTextColor(unpack(mail.wasRead and t.muted or t.heading))
+    row.subject:SetTextColor(unpack(mail.wasRead and t.muted or t.text))
     row.subject:SetText(mail.subject)
 
     for i, button in ipairs(row.attach) do
@@ -275,7 +263,7 @@ local function initRow(row, mail)
     row.more:SetText(extra > 0 and ("+" .. extra) or "")
 
     if mail.cod > 0 then
-        row.money:SetText("|cffff5555COD|r " .. moneyText(mail.cod))
+        row.money:SetText(ns.Style.Colorize("COD", "bad") .. " " .. moneyText(mail.cod))
     elseif mail.money > 0 then
         row.money:SetText(moneyText(mail.money))
     else
@@ -318,23 +306,23 @@ local function refresh()
     else
         view.summary:SetText(("%s     %s     %s"):format(
             plural(numItems, "mail"), plural(items, "item"),
-            gold > 0 and ("|cffffffff" .. moneyText(gold) .. "|r") or "no gold"))
+            gold > 0 and ns.Style.Colorize(moneyText(gold), "text") or "no gold"))
     end
 
     local details = {}
     if unread > 0 then table.insert(details, ("%d unread"):format(unread)) end
     if cods > 0 then
-        table.insert(details, ("|cffff5555%d COD (%s)|r"):format(cods, moneyText(codTotal)))
+        table.insert(details, ns.Style.Colorize(("%d COD (%s)"):format(cods, moneyText(codTotal)), "bad"))
     end
     if expiring > 0 then
-        table.insert(details, ("|cffff9900%d expiring within %d days|r"):format(expiring, EXPIRY_WARN_DAYS))
+        table.insert(details, ns.Style.Colorize(("%d expiring within %d days"):format(expiring, EXPIRY_WARN_DAYS), "warn"))
     end
     if totalItems and totalItems > numItems then
         -- The server sends at most 50-100 mails at a time; the rest arrive
         -- as these are taken.
-        table.insert(details, ("|cffff5555%d more waiting on the server|r"):format(totalItems - numItems))
+        table.insert(details, ns.Style.Colorize(("%d more waiting on the server"):format(totalItems - numItems), "bad"))
     end
-    view.details:SetText(table.concat(details, "   |cff666666·|r   "))
+    view.details:SetText(table.concat(details, ns.Style.Colorize("   ·   ", "muted")))
 end
 
 -- InboxFrame:Update runs on every inbox change, several times a second while
@@ -354,11 +342,11 @@ local function createView()
     view:SetPoint("TOPLEFT", 12, -64)
     view:SetPoint("BOTTOMRIGHT", -12, 10)
 
-    view.summary = view:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    view.summary = ns.Style.Text(view:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge"), "heading")
     view.summary:SetPoint("TOPLEFT", 4, -4)
     view.summary:SetJustifyH("LEFT")
 
-    view.details = view:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    view.details = ns.Style.Text(view:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall"), "text")
     view.details:SetPoint("TOPLEFT", view.summary, "BOTTOMLEFT", 0, -6)
     view.details:SetJustifyH("LEFT")
 
@@ -367,14 +355,14 @@ local function createView()
         { text = "Attachments", x = ATTACH_X },
     }
     for _, h in ipairs(headers) do
-        local fs = view:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        local fs = ns.Style.Text(view:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall"), "muted")
         fs:SetPoint("TOPLEFT", h.x, -52)
         fs:SetText(h.text)
     end
-    local expiresHeader = view:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local expiresHeader = ns.Style.Text(view:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall"), "muted")
     expiresHeader:SetPoint("TOPRIGHT", -(20 + 6 + 64 + 10), -52)
     expiresHeader:SetText("Expires")
-    local moneyHeader = view:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local moneyHeader = ns.Style.Text(view:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall"), "muted")
     moneyHeader:SetPoint("TOPRIGHT", -(20 + 6 + 64 + 10 + 70 + 10), -52)
     moneyHeader:SetText("Gold / COD")
 
@@ -391,7 +379,7 @@ local function createView()
     scrollView:SetElementInitializer("Button", initRow)
     ScrollUtil.InitScrollBoxListWithScrollBar(view.scrollBox, view.scrollBar, scrollView)
 
-    view.empty = view:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+    view.empty = ns.Style.Text(view:CreateFontString(nil, "OVERLAY", "GameFontDisable"), "muted")
     view.empty:SetPoint("CENTER", view.scrollBox, "CENTER")
     view.empty:SetText("Your inbox is empty.")
 
@@ -460,3 +448,6 @@ function ns:SetInboxExtended(on)
     view:SetShown(on)
     if on then refresh() end
 end
+
+-- Row colours come from the window style.
+ns:On("STYLE_CHANGED", queueRefresh)

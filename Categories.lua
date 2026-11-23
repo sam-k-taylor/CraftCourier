@@ -59,11 +59,136 @@ ns.categories = {
 
 ns.categoryByKey = {}
 local boeByQuality = {}
+local builtin = {}
 for _, cat in ipairs(ns.categories) do
     ns.categoryByKey[cat.key] = cat
+    table.insert(builtin, cat)
     if cat.quality then
         boeByQuality[cat.quality] = cat.key
     end
+end
+
+-- Headings the settings form and the Item Filters dropdown group categories
+-- under, in display order. Each category's `section` is set below.
+ns.categorySections = {
+    { key = "materials",   label = "Materials" },
+    { key = "professions", label = "Plans and Profession Items" },
+    { key = "gear",        label = "Bind on Equip Gear" },
+    { key = "custom",      label = "Custom" },
+}
+
+for _, cat in ipairs(builtin) do
+    if cat.quality then
+        cat.section = "gear"
+    elseif cat.key == "scrolls" or cat.key:find("^plans_") then
+        cat.section = "professions"
+    else
+        cat.section = "materials"
+    end
+end
+
+-- Returns { { section = <ns.categorySections entry>, categories = { cat, ... } }, ... }
+-- in display order. Sections with no categories are left out, except Custom.
+function ns:CategoriesBySection()
+    local groups, bySection = {}, {}
+    for _, section in ipairs(self.categorySections) do
+        local group = { section = section, categories = {} }
+        bySection[section.key] = group
+        table.insert(groups, group)
+    end
+    for _, cat in ipairs(self.categories) do
+        table.insert(bySection[cat.section or "custom"].categories, cat)
+    end
+    for i = #groups, 1, -1 do
+        if #groups[i].categories == 0 and groups[i].section.key ~= "custom" then
+            table.remove(groups, i)
+        end
+    end
+    return groups
+end
+
+---------------------------------------------------------------------------
+-- Custom categories (db.customCategories), added on the Item Filters screen.
+-- Items only get into one through an override. They're listed after the
+-- built-in ones. ns.categories is refilled in place, since other files
+-- iterate it each time rather than keeping a copy.
+---------------------------------------------------------------------------
+
+local CUSTOM_ICON = "Interface\Icons\INV_Misc_Bag_08"
+local CUSTOM_LABEL_MAX = 32
+
+function ns:RebuildCategories()
+    wipe(self.categories)
+    wipe(self.categoryByKey)
+    for _, cat in ipairs(builtin) do
+        table.insert(self.categories, cat)
+        self.categoryByKey[cat.key] = cat
+    end
+    for _, custom in ipairs(self.db and self.db.customCategories or {}) do
+        local cat = { key = custom.key, label = custom.label, icon = custom.icon or CUSTOM_ICON, custom = true, section = "custom" }
+        table.insert(self.categories, cat)
+        self.categoryByKey[cat.key] = cat
+    end
+end
+
+local function categoriesChanged()
+    ns:RebuildCategories()
+    ns:Fire("CATEGORIES_CHANGED")
+    ns:Fire("CONFIG_CHANGED")
+end
+
+-- Returns the trimmed label, or nil and the reason it can't be used.
+-- Labels must be unique (FindCategory looks them up) and can't be "ignore".
+function ns:ValidateCategoryLabel(label, exceptKey)
+    label = strtrim(label or ""):gsub("|", "")
+    if label == "" then return nil, "Enter a name." end
+    if #label > CUSTOM_LABEL_MAX then return nil, ("Use %d characters or fewer."):format(CUSTOM_LABEL_MAX) end
+    local lower = label:lower()
+    if lower == "ignore" then return nil, "That name is reserved." end
+    for _, cat in ipairs(self.categories) do
+        if cat.key ~= exceptKey and (cat.label:lower() == lower or cat.key == lower) then
+            return nil, "There's already a category with that name."
+        end
+    end
+    return label
+end
+
+function ns:AddCustomCategory(label, icon)
+    local valid, err = self:ValidateCategoryLabel(label)
+    if not valid then return nil, err end
+    local n = 1
+    while self.categoryByKey["custom_" .. n] do n = n + 1 end
+    local entry = { key = "custom_" .. n, label = valid, icon = icon }
+    table.insert(self.db.customCategories, entry)
+    categoriesChanged()
+    return self.categoryByKey[entry.key]
+end
+
+function ns:RenameCustomCategory(key, label)
+    local valid, err = self:ValidateCategoryLabel(label, key)
+    if not valid then return nil, err end
+    for _, entry in ipairs(self.db.customCategories) do
+        if entry.key == key then
+            entry.label = valid
+            categoriesChanged()
+            return self.categoryByKey[key]
+        end
+    end
+    return nil, "Unknown category."
+end
+
+-- Also drops its recipient and the item filters that pointed at it, so
+-- those items fall back to their default category.
+function ns:DeleteCustomCategory(key)
+    local list = self.db.customCategories
+    for i = #list, 1, -1 do
+        if list[i].key == key then table.remove(list, i) end
+    end
+    self.db.recipients[key] = nil
+    for itemID, target in pairs(self.db.overrides) do
+        if target == key then self.db.overrides[itemID] = nil end
+    end
+    categoriesChanged()
 end
 
 local BIND_ON_EQUIP = (Enum and Enum.ItemBind and Enum.ItemBind.OnEquip) or 2
@@ -269,7 +394,11 @@ function ns:Classify(itemID, name, quality)
         if override == "ignore" then return nil end
         return override
     end
+    return self:DefaultCategory(itemID, name, quality)
+end
 
+-- The category an item gets from the built-in rules, ignoring overrides.
+function ns:DefaultCategory(itemID, name, quality)
     local fixed = pickCategory(self.db, waylaidCrates[itemID] or professionSupplies[itemID])
     if fixed then return fixed end
 

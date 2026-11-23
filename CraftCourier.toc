@@ -13,9 +13,12 @@ Core.lua
 Categories.lua
 Mailer.lua
 Log.lua
+UI\Style.lua
 UI\MailPanel.lua
 UI\Suggest.lua
 UI\Config.lua
+UI\Filters.lua
 UI\LogWindow.lua
 UI\Inbox.lua
+UI\MailSkin.lua
 UI\Mailbox.lua

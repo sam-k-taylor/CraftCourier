@@ -6,9 +6,13 @@ local defaults = {
     recipients = {}, -- [categoryKey] = "Name" or "Name-Realm"
     overrides = {},  -- [itemID] = categoryKey or "ignore"
     characters = {}, -- ["Name Surname-<ruleset>"] = { name, realm, class, faction }; every alt seen with the addon
+    customCategories = {}, -- { { key = "custom_<n>", label, icon } }, in display order
     log = {},        -- sent mails, oldest first: { time, from, realm, to, mode, items = { {id, name, icon, count} } }
     showPanel = true,      -- docked panel beside the mailbox (only on the Inbox tab when extendMailbox is on)
     keepFirstAidCloth = false, -- don't mail cloth this character's First Aid still needs (current bracket and up)
+    playSounds = true,     -- a coin sound per mail sent and a chime when a batch is done
+    windowStyle = "satchel", -- "satchel", "letter", "flat" or "blizzard" (ns.Style.THEMES)
+    collapsedSections = {}, -- [sectionKey] = true for settings form sections folded away
     extendMailbox = true,  -- widen Blizzard's mailbox and add the inbox list, send panel and Settings tab
 }
 
@@ -86,6 +90,19 @@ ns:RegisterEvent("ADDON_LOADED", function(_, name)
         end
     end
     ns.db = CraftCourierDB
+
+    -- Add custom categories before the cleanup below, which drops settings
+    -- for unknown categories. Skip malformed or duplicate entries.
+    local customs, seen = {}, {}
+    for _, entry in ipairs(ns.db.customCategories) do
+        if type(entry) == "table" and type(entry.key) == "string" and type(entry.label) == "string"
+                and entry.key:match("^custom_%d+$") and not seen[entry.key] then
+            seen[entry.key] = true
+            table.insert(customs, entry)
+        end
+    end
+    ns.db.customCategories = customs
+    ns:RebuildCategories()
 
     -- Characters used to be keyed by realm ("Name-CAMWOWEU4Realm1PvE"), but on
     -- Forever a realm is just a shard of a ruleset. Rekey by world, merging
@@ -230,6 +247,22 @@ function ns:IsSelf(recipient)
     return target == squash(name) or target == squash(name .. self:GetPlayerRealm())
 end
 
+-- The recorded alt (db.characters entry) a recipient string refers to, or nil.
+-- Matches "Name Surname" or "Name Surname-Realm" in any spacing; when the same
+-- name is recorded in several worlds, prefers one this character can mail.
+function ns:FindCharacter(recipient)
+    if not recipient or recipient == "" or not self.db then return nil end
+    local target = squash(recipient)
+    local fallback
+    for _, char in pairs(self.db.characters) do
+        if char.name and (squash(char.name) == target or squash(char.name .. (char.realm or "")) == target) then
+            if self:IsSameWorld(char.realm) then return char end
+            fallback = fallback or char
+        end
+    end
+    return fallback
+end
+
 function ns:GetRecipient(key)
     local r = self.db.recipients[key]
     if r and r ~= "" then return r end
@@ -245,8 +278,10 @@ local function printHelp()
     print("  /craftcourier set <category> <Name Surname[-Realm]>")
     print("  /craftcourier clear <category>")
     print("  /craftcourier log  - show the send log")
+    print("  /craftcourier style [satchel|letter|flat|blizzard]  - change the window style")
     print("  /craftcourier list")
     print("  /craftcourier categories")
+    print("  /craftcourier filters [item link]  - open the item filters window")
     print("  /craftcourier assign <item link> <category|ignore>")
     print("  /craftcourier unassign <item link>")
     print("  /craftcourier item <item link>  - show how an item is categorised")
@@ -321,6 +356,18 @@ function commands.item(rest)
         cat and cat.label or "not sent"))
 end
 
+function commands.style(rest)
+    local theme = ns.Style.FindTheme(rest)
+    if not theme then
+        local names = {}
+        for _, key in ipairs(ns.Style.THEME_ORDER) do table.insert(names, key) end
+        ns:Print(("window style is %s. Choose one of: %s"):format(ns.Style.Theme().key, table.concat(names, ", ")))
+        return
+    end
+    ns.Style.SetTheme(theme.key)
+    ns:Print("window style:", theme.label)
+end
+
 function commands.log()
     ns:ToggleLog()
 end
@@ -334,14 +381,16 @@ end
 function commands.categories()
     local keys = {}
     for _, cat in ipairs(ns.categories) do
-        table.insert(keys, cat.key)
+        table.insert(keys, cat.custom and ("%s (%s)"):format(cat.key, cat.label) or cat.key)
     end
     ns:Print("categories:", table.concat(keys, ", "))
 end
 
 function commands.assign(rest)
     local itemID = tonumber(rest:match("item:(%d+)"))
-    local target = rest:match("(%S+)%s*$")
+    -- Everything after the link, so custom category names can have spaces.
+    local target = rest:match("|h|r%s*(.-)%s*$") or rest:match("(%S+)%s*$")
+    if target == "" then target = nil end
     if not itemID or not target then
         ns:Print("usage: /craftcourier assign <item link> <category|ignore>")
         return
@@ -359,6 +408,10 @@ function commands.assign(rest)
         ns:Print("item", itemID, "->", cat.label)
     end
     ns:Fire("CONFIG_CHANGED")
+end
+
+function commands.filters(rest)
+    ns:ShowFilters(tonumber(rest:match("item:(%d+)")) or tonumber(rest))
 end
 
 function commands.unassign(rest)

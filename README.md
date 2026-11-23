@@ -97,10 +97,13 @@ Categories.lua     Category list, item classification, bag scanning
 Log.lua            Records each sent mail (time, from, to, items)
 Mailer.lua         Mail queue: attaches stacks, then sends (auto) or waits for you to send (review), one mail at a time
 UI/Mailbox.lua     Extends Blizzard's mail window: double width, Settings tab
+UI/MailSkin.lua    Restyles Blizzard's mailbox (window, tabs, Send Mail form, open letter) in the chosen window style
 UI/Inbox.lua       Inbox summary and scrolling mail list
+UI/Style.lua       Window styles (Courier's Satchel, Letter, Flat, Blizzard) and the shared skinning helpers
 UI/MailPanel.lua   Send panel (inside the Send Mail tab, or docked beside the inbox)
 UI/Suggest.lua     Recipient name suggestions (game autocomplete, alts, friends, Battle.net), filtered to mailable characters
 UI/LogWindow.lua   Send log window with filter
+UI/Filters.lua     Item filters window: pick an item from your bags, set its category or ignore it, custom categories, list of filters
 UI/Config.lua      Recipient form, shown on the Settings tab, the Options > AddOns page and a small window
 .pkgmeta           CurseForge/BigWigs packager config
 package.sh         Builds the release zip into .release/

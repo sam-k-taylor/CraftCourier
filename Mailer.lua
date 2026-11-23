@@ -20,6 +20,7 @@ local current
 local busy = false
 local mode = "auto"
 local sentCount, totalCount = 0, 0
+local sentTo = {} -- lowercased recipients that got at least one mail this run
 
 function Mailer:IsBusy()
     return busy
@@ -78,11 +79,17 @@ function Mailer:Queue(keys)
     return queued
 end
 
+-- "Sent 8 mails to 3 alts."
+function ns:SentSummary(mails, alts)
+    return ("Sent %d mail%s to %d alt%s."):format(mails, mails == 1 and "" or "s", alts, alts == 1 and "" or "s")
+end
+
 function Mailer:Start(startMode)
     if busy or #queue == 0 then return end
     mode = startMode or "auto"
     busy = true
     sentCount, totalCount = 0, #queue
+    wipe(sentTo)
     ns:Fire("MAILER_STATE")
     self:SendNext()
 end
@@ -140,10 +147,14 @@ function Mailer:SendNext()
     local job = table.remove(queue, 1)
     if not job then
         busy = false
+        local alts = 0
+        for _ in pairs(sentTo) do alts = alts + 1 end
         if sentCount > 0 then
-            ns:Print(("Done. Sent %d mail(s)."):format(sentCount))
+            ns:Print(ns.Style.Green(ns:SentSummary(sentCount, alts)))
+            ns.Style.PlaySound("finish")
         end
         ns:Fire("MAILER_STATE")
+        ns:Fire("MAILER_FINISHED", sentCount, alts)
         return
     end
 
@@ -179,6 +190,8 @@ end
 ns:RegisterEvent("MAIL_SEND_SUCCESS", function()
     if not current then return end
     sentCount = sentCount + 1
+    sentTo[current.recipient:lower()] = true
+    ns.Style.PlaySound("send")
     ns:Print(("Sent %d stack(s) to %s."):format(current.attached, current.recipient))
     current = nil
     ns:Fire("MAILER_STATE")
