@@ -702,8 +702,8 @@ local function colorLines(lines, c)
     for _, line in ipairs(lines) do line:SetVertexColor(c[1], c[2], c[3], c[4] or 1) end
 end
 
--- Shapes the art around `tab` (w by h): the cap above the tab's top (it
--- fills the strip between the tab and the window's fill) and the body,
+-- Shapes the art around `tab` (w by h): the cap above the tab's top (the
+-- thin strip between the tab and the window's fill) and the body,
 -- tapered by `slant` at the bottom, both ending on the outline's centre so
 -- the line covers their hard edges. Unselected tabs also get their own
 -- outline; the selected tab's is part of the window's.
@@ -714,10 +714,14 @@ local function shapeTabArt(art, tab, w, h, slant, t, selected)
     art:SetPoint("TOPLEFT", tab, "TOPLEFT", 0, TAB_TUCK)
     art:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", 0, 0)
 
+    -- The cap only bridges the tab's top and the window's background (which
+    -- stops `d` above the window's edge). It must not reach further in: the
+    -- window's own widgets (the Send Mail money box and buttons) sit right
+    -- on its bottom edge.
     local top, bottom = sideX(0, h, slant, d), sideX(-h + d, h, slant, d)
     art.cap:ClearAllPoints()
-    art.cap:SetPoint("TOPLEFT", art, "TOPLEFT", top, 0)
-    art.cap:SetPoint("BOTTOMRIGHT", tab, "TOPRIGHT", -top, 0)
+    art.cap:SetPoint("BOTTOMLEFT", tab, "TOPLEFT", top, 0)
+    art.cap:SetPoint("TOPRIGHT", tab, "TOPRIGHT", -top, d + 0.5)
     art.body:ClearAllPoints()
     art.body:SetPoint("TOPLEFT", tab, "TOPLEFT", top, 0)
     art.body:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -top, d)
