@@ -17,7 +17,7 @@ Pick a character for each type of material: cloth, leather, herbs, ore, bars and
   - **Settings** tab: the recipient form.
 
   Turn off **Extend the mailbox** in settings to keep Blizzard's mail window as it is and dock the CraftCourier panel beside it instead.
-- Settings in three places: the mailbox's **Settings** tab, a page under **Options → AddOns → CraftCourier**, and a small window opened with `/craftcourier`. As you type a recipient, it suggests names from the game's own mail autocomplete (every character on your account, friends, guild members and people you've played with recently), recipients you've already set, and Battle.net friends playing this version of WoW. Only characters you can actually mail (same realm and faction) are suggested.
+- Settings in three places: the mailbox's **Settings** tab, a page under **Options → AddOns → CraftCourier**, and a small window opened with `/craftcourier`. As you type a recipient, it suggests names from the game's own mail autocomplete (every character on your account, friends, guild members and people you've played with recently), recipients you've already set, and Battle.net friends playing this version of WoW. Only characters you can actually mail (same ruleset and faction) are suggested. On Forever the realm name is just a shard of a ruleset (PvE, PvP, RPPvE, RPPvP), so characters on different realms of the same ruleset count as one world.
 - **Keep the cloth my First Aid skill still needs** (off by default): the send panel leaves out the cloth for the logged-in character's current First Aid bracket and every higher one (Linen below 81, Wool below 151, Silk below 211, Mageweave below 261, Runecloth below 300), so only cloth it has outgrown is mailed. Updates as the skill rises.
 - A send panel listing each material type in your bags with its item count and two buttons:
   - **One Click Send** attaches the stacks and sends the mails automatically.
@@ -40,7 +40,7 @@ ln -s ~/dev/CraftCourier "<WoW install>/<flavor>/Interface/AddOns/CraftCourier"
 
 ## Usage
 
-1. Type `/craftcourier` (or `/ccr`) to open the settings window, or use **Options → AddOns → CraftCourier**. Enter a recipient for each material type, using the character's full name including surname (e.g. `Greeb Deez`). Add `-Realm` for another realm. Start typing to see suggestions: use the arrow keys to move through them and Tab or Enter to pick one.
+1. Type `/craftcourier` (or `/ccr`) to open the settings window, or use **Options → AddOns → CraftCourier**. Enter a recipient for each material type, using the character's full name including surname (e.g. `Greeb Deez`). Start typing to see suggestions: use the arrow keys to move through them and Tab or Enter to pick one.
    Characters on your account are suggested as soon as you type. With an empty box, the list shows alts you've logged into with CraftCourier installed, plus recipients you've already set.
 2. Open any mailbox. The CraftCourier panel is docked beside the inbox, and fills the right half of the **Send Mail** tab.
 3. Click **One Click Send** or **Review and Send** on a material type, or **Send All** or **Review All** at the bottom. Click **Stop** to cancel. In review mode, Stop also takes the items back out of the mail.
@@ -60,7 +60,7 @@ Hover over a button to see the recipient and every item that will be sent.
 | `/craftcourier assign <item link> <category\|ignore>` | Put an item in a different category, or ignore it |
 | `/craftcourier unassign <item link>` | Remove an item override |
 | `/craftcourier item <item link or ID>` | Show an item's ID, class, quality, bind type and CraftCourier category (useful for issue reports) |
-| `/craftcourier debug` | Show which character and realm CraftCourier thinks you are on, and which recipients match it |
+| `/craftcourier debug [name]` | Show which character, realm and ruleset CraftCourier thinks you are on, which recipients match it, and why a name is or isn't suggested |
 
 Shift-click an item to insert its link into the chat box.
 

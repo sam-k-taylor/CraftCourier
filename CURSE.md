@@ -6,7 +6,7 @@ CraftCourier lets you assign a character to each type of crafting material, and 
 
 ## How it works
 
-1. Type **/craftcourier** (or use **Options → AddOns → CraftCourier**) and choose who gets what. Names are suggested as you type: characters on your account, friends, guild members and Battle.net friends, as long as they're on your realm and faction. For example, your tailor gets Cloth, your leatherworker gets Leather, your alchemist gets Herbs, and so on.
+1. Type **/craftcourier** (or use **Options → AddOns → CraftCourier**) and choose who gets what. Names are suggested as you type: characters on your account, friends, guild members and Battle.net friends, as long as they're on your ruleset (PvE, PvP, RP-PvE or RP-PvP) and faction. For example, your tailor gets Cloth, your leatherworker gets Leather, your alchemist gets Herbs, and so on.
 2. Open any mailbox. The CraftCourier panel beside the inbox (and on the **Send Mail** tab) lists each material type in your bags and how many you have.
 3. For each material type, choose **One Click Send** to mail it right away, or **Review and Send** to have the mail filled in so you can check it and press Send yourself. **Send All** and **Review All** do the same for everything.
 

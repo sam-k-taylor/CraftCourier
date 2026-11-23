@@ -5,7 +5,7 @@ ns.name = ADDON_NAME
 local defaults = {
     recipients = {}, -- [categoryKey] = "Name" or "Name-Realm"
     overrides = {},  -- [itemID] = categoryKey or "ignore"
-    characters = {}, -- ["Name-Realm"] = { name, realm, class, faction }; every alt seen with the addon
+    characters = {}, -- ["Name Surname-<ruleset>"] = { name, realm, class, faction }; every alt seen with the addon
     log = {},        -- sent mails, oldest first: { time, from, realm, to, mode, items = { {id, name, icon, count} } }
     showPanel = true,      -- docked panel beside the mailbox (only on the Inbox tab when extendMailbox is on)
     keepFirstAidCloth = false, -- don't mail cloth this character's First Aid still needs (current bracket and up)
@@ -87,6 +87,23 @@ ns:RegisterEvent("ADDON_LOADED", function(_, name)
     end
     ns.db = CraftCourierDB
 
+    -- Characters used to be keyed by realm ("Name-CAMWOWEU4Realm1PvE"), but on
+    -- Forever a realm is just a shard of a ruleset. Rekey by world, merging
+    -- shard copies, and drop copies saved while the realm was unknown when
+    -- the same name is known elsewhere.
+    local chars, known = {}, {}
+    for _, char in pairs(ns.db.characters) do
+        if char.name then
+            local world = ns:WorldKey(char.realm)
+            chars[char.name .. "-" .. world] = char
+            if world ~= "" then known[char.name] = true end
+        end
+    end
+    for key, char in pairs(chars) do
+        if (char.realm or "") == "" and known[char.name] then chars[key] = nil end
+    end
+    ns.db.characters = chars
+
     -- Drop settings for categories that no longer exist (e.g. Inscription,
     -- which Forever doesn't have), so their items fall back to normal classification.
     for key in pairs(ns.db.recipients) do
@@ -107,17 +124,46 @@ end)
 -- Helpers
 ---------------------------------------------------------------------------
 
+-- Forever sometimes reports no realm at all (GetNormalizedRealmName() and
+-- GetRealmName() return "", GetRealmID() returns 0). Returns "" then.
 function ns:GetPlayerRealm()
-    return (GetNormalizedRealmName and GetNormalizedRealmName()) or (GetRealmName():gsub("[%s%-]", ""))
+    local realm = GetNormalizedRealmName and GetNormalizedRealmName()
+    if not realm or realm == "" then
+        realm = ((GetRealmName and GetRealmName()) or ""):gsub("[%s%-]", "")
+    end
+    return realm
 end
 
 local function normalizeRealm(realm)
     return (realm:gsub("[%s%-']", "")):lower()
 end
 
--- Same realm as the logged-in character, ignoring spaces/case.
-function ns:IsPlayerRealm(realm)
-    return realm == nil or realm == "" or normalizeRealm(realm) == normalizeRealm(self:GetPlayerRealm())
+-- Forever has no realms in the usual sense. Realm names such as
+-- "CAMWOWEU4Realm1PvE" are load-balancing shards, and everyone on the same
+-- ruleset (the suffix: PvE, PvP, RPPvE or RPPvP) shares one world and can
+-- mail each other. Returns the lowercased ruleset, or nil if there's none.
+local RULESETS = { "rppvp", "rppve", "pvp", "pve" } -- RP first: "rppvp" also ends in "pvp"
+function ns:RulesetOf(realm)
+    if not realm or realm == "" then return nil end
+    local r = normalizeRealm(realm)
+    for _, ruleset in ipairs(RULESETS) do
+        if r:sub(-#ruleset) == ruleset then return ruleset end
+    end
+end
+
+-- Key for the world a realm belongs to: its ruleset, or the realm itself if
+-- it has none, or "" when unknown.
+function ns:WorldKey(realm)
+    if not realm or realm == "" then return "" end
+    return self:RulesetOf(realm) or normalizeRealm(realm)
+end
+
+-- True if a character on this realm can be mailed from the logged-in one.
+-- Unknown realms (ours or theirs) can't be ruled out, so they count as true.
+function ns:IsSameWorld(realm)
+    local mine = self:WorldKey(self:GetPlayerRealm())
+    local theirs = self:WorldKey(realm)
+    return mine == "" or theirs == "" or mine == theirs
 end
 
 -- WoW Forever characters have a surname: UnitName returns (name, surname),
@@ -135,22 +181,38 @@ function ns:GetPlayerName()
 end
 
 -- Remember this character so it can be suggested as a recipient on alts.
-ns:RegisterEvent("PLAYER_LOGIN", function()
+-- Keyed by world (ruleset), so logging in on another shard doesn't add a copy.
+local function recordCharacter()
     local fullName, firstName = ns:GetPlayerName()
+    if not fullName then return end
     local realm = ns:GetPlayerRealm()
-    if not fullName or not realm then return end
-    -- Drop the entry older versions saved under the first name only.
-    if firstName ~= fullName then
-        ns.db.characters[firstName .. "-" .. realm] = nil
+    local world = ns:WorldKey(realm)
+    local chars = ns.db.characters
+    if world == "" then
+        -- Realm unknown: keep an entry with a known realm rather than adding a blank one.
+        for _, char in pairs(chars) do
+            if char.name == fullName and char.realm and char.realm ~= "" then return end
+        end
+    end
+    -- Replace older entries for this character in this world: per-shard keys,
+    -- ones saved while the realm was unknown, and first-name-only ones.
+    for key, char in pairs(chars) do
+        if (char.name == fullName or char.name == firstName)
+                and (ns:WorldKey(char.realm) == world or (char.realm or "") == "") then
+            chars[key] = nil
+        end
     end
     local _, class = UnitClass("player")
-    ns.db.characters[fullName .. "-" .. realm] = {
+    chars[fullName .. "-" .. world] = {
         name = fullName,
         realm = realm,
         class = class,
         faction = UnitFactionGroup("player"),
     }
-end)
+end
+ns:RegisterEvent("PLAYER_LOGIN", recordCharacter)
+-- The realm name may only arrive after login.
+ns:RegisterEvent("PLAYER_ENTERING_WORLD", recordCharacter)
 
 -- Lowercase with spaces, hyphens and apostrophes removed, so "Name-Realm",
 -- "Name - Realm", "Name Realm" and "NameRealm" all compare equal.
@@ -188,7 +250,7 @@ local function printHelp()
     print("  /craftcourier assign <item link> <category|ignore>")
     print("  /craftcourier unassign <item link>")
     print("  /craftcourier item <item link>  - show how an item is categorised")
-    print("  /craftcourier debug  - show who CraftCourier thinks you are")
+    print("  /craftcourier debug [name]  - show who CraftCourier thinks you are, and why a name is or isn't suggested")
 end
 
 local commands = {}
@@ -217,7 +279,7 @@ function commands.clear(rest)
     ns:Fire("CONFIG_CHANGED")
 end
 
-function commands.debug()
+function commands.debug(rest)
     local fullName, firstName, surname = ns:GetPlayerName()
     ns:Print(("you are '%s' (name '%s', surname '%s') on realm '%s'"):format(
         tostring(fullName), tostring(firstName), tostring(surname), tostring(ns:GetPlayerRealm())))
@@ -233,6 +295,7 @@ function commands.debug()
             print(("  %s: '%s'%s"):format(cat.label, recipient, ns:IsSelf(recipient) and " |cff33ff99(this character)|r" or ""))
         end
     end
+    ns:DebugSuggestions(rest or "")
 end
 
 -- Prints what CraftCourier knows about an item, for bug reports.
