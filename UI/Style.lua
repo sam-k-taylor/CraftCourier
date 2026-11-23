@@ -509,15 +509,13 @@ local function createTabArt(edge)
     local art = CreateFrame("Frame", nil, edge)
     art.cap = art:CreateTexture(nil, "BACKGROUND")
     art.body = art:CreateTexture(nil, "BACKGROUND")
-    -- outer: right, bottom, left. joins: short pieces along the window's
-    -- outer line, where the selected tab's outline carries on from it.
-    art.outer, art.joins = {}, {}
-    for i = 1, 3 do art.outer[i] = art:CreateLine(nil, "BORDER") end
-    for i = 1, 2 do
-        art.joins[i] = art:CreateLine(nil, "BORDER")
-        art.joins[i]:SetTexture(TAB_EDGE)
+    -- Outline of an unselected tab: right, bottom, left. (The selected tab's
+    -- outline is part of the window's, drawn by its chrome.)
+    art.outer = {}
+    for i = 1, 3 do
+        art.outer[i] = art:CreateLine(nil, "BORDER")
+        art.outer[i]:SetTexture(TAB_EDGE)
     end
-    for _, line in ipairs(art.outer) do line:SetTexture(TAB_EDGE) end
     function art:SetFill(c)
         self.cap:SetColorTexture(c[1], c[2], c[3], c[4] or 1)
         self.body:SetColorTexture(c[1], c[2], c[3], c[4] or 1)
@@ -525,43 +523,17 @@ local function createTabArt(edge)
     return art
 end
 
-local function colorLines(lines, c)
-    for _, line in ipairs(lines) do line:SetVertexColor(c[1], c[2], c[3], c[4] or 1) end
-end
-
--- The left side of a tab runs from (0, 0) to (slant, -h), offsets from its
--- top-left. Returns the x of a line parallel to it, `d` px inside it (a
--- perpendicular distance, so the gap is even all the way down), at height y.
-local function sideX(y, h, slant, d)
-    return -slant * y / h + d * math.sqrt(1 + (slant / h) ^ 2)
-end
-
--- Traces one line round a tab (w by h, bottom corners pulled in by `slant`),
--- `d` px inside its outline, the sides starting `top` px up (inside the
--- window, for the selected tab). Returns the x of the left side at `top`.
-local function traceTab(art, right, bottom, left, w, h, slant, d, top)
-    local tab = art.tab
-    local xTop, xBottom = sideX(top, h, slant, d), sideX(-h + d, h, slant, d)
-    right:SetStartPoint("TOPLEFT", tab, w - xTop, top)
-    right:SetEndPoint("TOPLEFT", tab, w - xBottom, -h + d)
-    bottom:SetStartPoint("TOPLEFT", tab, w - xBottom, -h + d)
-    bottom:SetEndPoint("TOPLEFT", tab, xBottom, -h + d)
-    left:SetStartPoint("TOPLEFT", tab, xBottom, -h + d)
-    left:SetEndPoint("TOPLEFT", tab, xTop, top)
-    return xTop
-end
-
--- Where the window's outer border line is, measured in game: its centre
--- from the frame's edge, its width, and its brightness. The rounded border
--- texture is mid-grey, so tinting it gives about half the colour; the tab
--- line is dimmed to match. Flat's 1px line is plain white (full colour).
--- innerShade dims the unselected tabs' outline (the inner frame colour).
-local function borderLines(t)
+-- The window outline, shared by the window border and the tabs: where its
+-- outer line runs (`d` from the frame's edge), its width, corner radius and
+-- brightness, and the same for the inner frame line. Letter's inner line
+-- and everything in Flat are square-cornered.
+local function outlineGeometry(t)
     local round = t.edge ~= "square"
     local squareInner = not round or t.key == "letter"
     return {
-        outer = round and 2 or 1, outerWidth = 2, outerShade = round and 0.5 or 1,
-        innerShade = squareInner and 1 or 0.55,
+        d = 1, width = 2, radius = round and 7 or 0, shade = round and 0.55 or 1,
+        innerD = squareInner and 7.5 or 6.5, innerWidth = 1.5,
+        innerRadius = squareInner and 0 or 3, innerShade = squareInner and 1 or 0.55,
     }
 end
 
@@ -569,63 +541,204 @@ local function shade(c, f)
     return { c[1] * f, c[2] * f, c[3] * f, c[4] or 1 }
 end
 
--- Shapes the art around `tab` (w by h): the cap above the tab's top, the
--- body tapered by `slant` at the bottom, and its outline: the window's
--- outer border line, which on the selected tab carries on from the
--- window's own, turning down at the tab's edge.
+---------------------------------------------------------------------------
+-- Drawn outlines: pools of Lines on a host frame, tracing paths given in
+-- the host's coordinates (from its bottom-left, y up). Lines use the soft
+-- TAB_EDGE texture, so slants and curves don't stair-step.
+---------------------------------------------------------------------------
+
+local CORNER_STEPS = 6
+
+local function linePool(host)
+    return { host = host, lines = {}, used = 0 }
+end
+
+local function poolStart(pool) pool.used = 0 end
+
+local function poolFinish(pool)
+    for i = pool.used + 1, #pool.lines do pool.lines[i]:Hide() end
+end
+
+-- Draws a polyline. Each segment is stretched a little at both ends so
+-- the joins close.
+local function drawPath(pool, pts, closed, width, color)
+    local n = #pts
+    for i = 1, closed and n or n - 1 do
+        local a, b = pts[i], pts[i % n + 1]
+        local dx, dy = b[1] - a[1], b[2] - a[2]
+        local len = math.sqrt(dx * dx + dy * dy)
+        if len > 0.01 then
+            local ex, ey = dx / len * width / 4, dy / len * width / 4
+            pool.used = pool.used + 1
+            local line = pool.lines[pool.used]
+            if not line then
+                line = pool.host:CreateLine(nil, "ARTWORK")
+                line:SetTexture(TAB_EDGE)
+                pool.lines[pool.used] = line
+            end
+            line:SetStartPoint("BOTTOMLEFT", pool.host, a[1] - ex, a[2] - ey)
+            line:SetEndPoint("BOTTOMLEFT", pool.host, b[1] + ex, b[2] + ey)
+            line:SetThickness(width)
+            line:SetVertexColor(color[1], color[2], color[3], color[4] or 1)
+            line:Show()
+        end
+    end
+end
+
+-- Appends a corner: an arc of radius r round (cx, cy) from angle a0 to a1
+-- (degrees), or the single corner point for square corners.
+local function addArc(pts, cx, cy, r, a0, a1)
+    if r <= 0 then
+        -- Square corner: the "centre" is the corner itself.
+        table.insert(pts, { cx, cy })
+        return
+    end
+    for i = 0, CORNER_STEPS do
+        local a = math.rad(a0 + (a1 - a0) * i / CORNER_STEPS)
+        table.insert(pts, { cx + r * math.cos(a), cy + r * math.sin(a) })
+    end
+end
+
+-- The left side of a tab runs from (0, 0) to (slant, -h), from its top-left.
+-- Returns the x of a line parallel to it, `d` px inside it (a perpendicular
+-- distance, so the gap is even all the way down), at height y.
+local function sideX(y, h, slant, d)
+    return -slant * y / h + d * math.sqrt(1 + (slant / h) ^ 2)
+end
+
+-- The window's outer line: round the frame (W by H) `d` in from its edge,
+-- with corners of radius r, dipping down round `tab` if one is selected
+-- (tab = { x, w, h, slant }: its left edge from the frame's left, its top on
+-- the frame's bottom edge).
+local function framePath(W, H, d, r, tab)
+    local pts = {}
+    addArc(pts, d + r, H - d - r, r, 180, 90)
+    addArc(pts, W - d - r, H - d - r, r, 90, 0)
+    addArc(pts, W - d - r, d + r, r, 0, -90)
+    if tab then
+        local right, left = tab.x + tab.w, tab.x
+        table.insert(pts, { right - sideX(d, tab.h, tab.slant, d), d })
+        table.insert(pts, { right - sideX(-tab.h + d, tab.h, tab.slant, d), -tab.h + d })
+        table.insert(pts, { left + sideX(-tab.h + d, tab.h, tab.slant, d), -tab.h + d })
+        table.insert(pts, { left + sideX(d, tab.h, tab.slant, d), d })
+    end
+    addArc(pts, d + r, d + r, r, -90, -180)
+    return pts
+end
+
+-- The window's inner line, `di` in with corners of radius ri. With a tab it
+-- stops where it meets the tab's outline (at `d`), on both sides.
+local function innerPath(W, H, di, ri, d, tab)
+    local pts = {}
+    if tab then
+        table.insert(pts, { tab.x + sideX(di, tab.h, tab.slant, d), di })
+    end
+    addArc(pts, di + ri, di + ri, ri, -90, -180)
+    addArc(pts, di + ri, H - di - ri, ri, 180, 90)
+    addArc(pts, W - di - ri, H - di - ri, ri, 90, 0)
+    addArc(pts, W - di - ri, di + ri, ri, 0, -90)
+    if tab then
+        table.insert(pts, { tab.x + tab.w - sideX(di, tab.h, tab.slant, d), di })
+    end
+    return pts
+end
+
+-- The window's background, filling exactly to the outline: a middle band,
+-- strips along the top and bottom, and a quarter circle in each corner (the
+-- round portrait mask), so the rounded corners have nothing poking out.
+local CORNER_COORDS = { { 0, 0.5, 0, 0.5 }, { 0.5, 1, 0, 0.5 }, { 0.5, 1, 0.5, 1 }, { 0, 0.5, 0.5, 1 } }
+
+local function createFill(host)
+    local fill = { host = host, rects = {}, corners = {} }
+    for i = 1, 3 do fill.rects[i] = host:CreateTexture(nil, "BACKGROUND", nil, -8) end
+    for i = 1, 4 do
+        fill.corners[i] = host:CreateTexture(nil, "BACKGROUND", nil, -8)
+        fill.corners[i]:SetTexture(CIRCLE)
+    end
+    return fill
+end
+
+local function hideFill(fill)
+    for _, tex in ipairs(fill.rects) do tex:Hide() end
+    for _, tex in ipairs(fill.corners) do tex:Hide() end
+end
+
+local function layoutFill(fill, W, H, d, r, c)
+    local host = fill.host
+    local function place(tex, x1, y1, x2, y2)
+        tex:ClearAllPoints()
+        tex:SetPoint("BOTTOMLEFT", host, "BOTTOMLEFT", x1, y1)
+        tex:SetPoint("TOPRIGHT", host, "BOTTOMLEFT", x2, y2)
+        tex:Show()
+    end
+    for _, tex in ipairs(fill.rects) do tex:SetColorTexture(c[1], c[2], c[3], c[4] or 1) end
+    if r <= 0 then
+        place(fill.rects[1], d, d, W - d, H - d)
+        fill.rects[2]:Hide()
+        fill.rects[3]:Hide()
+        for _, tex in ipairs(fill.corners) do tex:Hide() end
+        return
+    end
+    place(fill.rects[1], d, d + r, W - d, H - d - r)
+    place(fill.rects[2], d + r, H - d - r, W - d - r, H - d)
+    place(fill.rects[3], d + r, d, W - d - r, d + r)
+    local spots = { { d, H - d - r }, { W - d - r, H - d - r }, { W - d - r, d }, { d, d } }
+    for i, tex in ipairs(fill.corners) do
+        tex:SetTexCoord(unpack(CORNER_COORDS[i]))
+        tex:SetVertexColor(c[1], c[2], c[3], c[4] or 1)
+        place(tex, spots[i][1], spots[i][2], spots[i][1] + r, spots[i][2] + r)
+    end
+end
+
+-- Chromes by window frame, so a row of tabs can tell its window which one
+-- is selected (its outline then dips round that tab).
+local windowChromes = setmetatable({}, { __mode = "k" })
+
+---------------------------------------------------------------------------
+-- Tab shapes
+---------------------------------------------------------------------------
+
+local function colorLines(lines, c)
+    for _, line in ipairs(lines) do line:SetVertexColor(c[1], c[2], c[3], c[4] or 1) end
+end
+
+-- Shapes the art around `tab` (w by h): the cap above the tab's top (it
+-- fills the strip between the tab and the window's fill) and the body,
+-- tapered by `slant` at the bottom, both ending on the outline's centre so
+-- the line covers their hard edges. Unselected tabs also get their own
+-- outline; the selected tab's is part of the window's.
 local function shapeTabArt(art, tab, w, h, slant, t, selected)
-    art.tab = tab
+    local g = outlineGeometry(t)
+    local d = g.d
     art:ClearAllPoints()
     art:SetPoint("TOPLEFT", tab, "TOPLEFT", 0, TAB_TUCK)
     art:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", 0, 0)
 
+    local top, bottom = sideX(0, h, slant, d), sideX(-h + d, h, slant, d)
     art.cap:ClearAllPoints()
-    art.cap:SetPoint("TOPLEFT", art, "TOPLEFT")
-    art.cap:SetPoint("BOTTOMRIGHT", tab, "TOPRIGHT")
-
-    -- The fill ends on the outer line's centre, so the line covers the
-    -- fill's hard (stair-stepped) edge.
-    local b = borderLines(t)
-    local top, bottom = sideX(0, h, slant, b.outer), sideX(-h + b.outer, h, slant, b.outer)
+    art.cap:SetPoint("TOPLEFT", art, "TOPLEFT", top, 0)
+    art.cap:SetPoint("BOTTOMRIGHT", tab, "TOPRIGHT", -top, 0)
     art.body:ClearAllPoints()
     art.body:SetPoint("TOPLEFT", tab, "TOPLEFT", top, 0)
-    art.body:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -top, b.outer)
+    art.body:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -top, d)
     if art.body.SetVertexOffset then
         art.body:SetVertexOffset(LOWER_LEFT, bottom - top, 0)
         art.body:SetVertexOffset(LOWER_RIGHT, top - bottom, 0)
     end
-    art.cap:ClearAllPoints()
-    art.cap:SetPoint("TOPLEFT", art, "TOPLEFT")
-    art.cap:SetPoint("BOTTOMRIGHT", tab, "TOPRIGHT")
 
     local o = art.outer
-    for _, line in ipairs(o) do line:SetThickness(b.outerWidth) end
-    local outerTurn = traceTab(art, o[1], o[2], o[3], w, h, slant, b.outer, b.outer)
-    local outerColor = selected and shade(t.border, b.outerShade)
-        or shade(t.inner or t.buttonBorder, b.innerShade)
-    colorLines(o, outerColor)
-
-    -- The selected tab's outer line joins the window's: a short piece along
-    -- the window's outer line on each side, overlapping both it and the
-    -- tab's side, so the corner closes. (Unselected tabs are behind the
-    -- window, where their tops don't show.)
-    local j = art.joins
-    for _, line in ipairs(j) do
-        line:SetShown(selected)
-        line:SetThickness(b.outerWidth)
+    for _, line in ipairs(o) do line:SetShown(not selected) end
+    if not selected then
+        for _, line in ipairs(o) do line:SetThickness(g.width) end
+        local xTop, xBottom = sideX(0, h, slant, d), sideX(-h + d, h, slant, d)
+        o[1]:SetStartPoint("TOPLEFT", tab, w - xTop, 0)
+        o[1]:SetEndPoint("TOPLEFT", tab, w - xBottom, -h + d)
+        o[2]:SetStartPoint("TOPLEFT", tab, w - xBottom, -h + d)
+        o[2]:SetEndPoint("TOPLEFT", tab, xBottom, -h + d)
+        o[3]:SetStartPoint("TOPLEFT", tab, xBottom, -h + d)
+        o[3]:SetEndPoint("TOPLEFT", tab, xTop, 0)
+        colorLines(o, shade(t.inner or t.buttonBorder, g.innerShade))
     end
-    if selected then
-        local d, overlap = b.outer, b.outerWidth
-        j[1]:SetStartPoint("TOPLEFT", tab, w + overlap, d)
-        j[1]:SetEndPoint("TOPLEFT", tab, w - outerTurn - overlap / 2, d)
-        j[2]:SetStartPoint("TOPLEFT", tab, outerTurn + overlap / 2, d)
-        j[2]:SetEndPoint("TOPLEFT", tab, -overlap, d)
-        colorLines(j, outerColor)
-    end
-
-    -- One outline only, like a Filofax tab: the window's inner line just
-    -- runs into the tab's side (the cap covers it from there), so each top
-    -- corner is two lines meeting rather than four.
 end
 
 function Style.SkinTabs(edge, tabs, scope)
@@ -656,6 +769,7 @@ function Style.SkinTabs(edge, tabs, scope)
         local custom = t.chrome == "custom"
         local base = edge:GetFrameLevel()
         local x = 14
+        local selectedTab
         for _, skin in ipairs(row) do
             local tab, art = skin.tab, skin.art
             local text = tab.Text or tab:GetFontString()
@@ -668,6 +782,7 @@ function Style.SkinTabs(edge, tabs, scope)
                 tab:SetHeight(height)
                 tab:SetPoint("TOPLEFT", edge, "BOTTOMLEFT", x, 0)
                 tab:SetFrameLevel(base + 4)
+                skin.x, skin.slant = x, slant
 
                 shapeTabArt(art, tab, width, height, slant, t, skin.selected)
                 -- Selected: in front of the window. Others: behind it.
@@ -696,7 +811,12 @@ function Style.SkinTabs(edge, tabs, scope)
             -- Hovered labels keep their colour; selected tabs are disabled
             -- buttons, so "disabled" is the selected colour.
             skin.setFonts(t, { t.buttonText, t.buttonText, t.heading })
+            if custom and skin.selected and tab:IsShown() then
+                selectedTab = { x = skin.x, w = tab:GetWidth(), h = tab:GetHeight(), slant = skin.slant }
+            end
         end
+        local chrome = windowChromes[edge]
+        if chrome then chrome.SetTab(selectedTab, t) end
     end
 
     local run = Style.Register(layout, scope)
@@ -937,15 +1057,21 @@ local function createCloseButton(frame, close)
     return button
 end
 
--- The custom chrome on `frame`: a backdrop (on `bgFrame`), an inner frame
--- line, and a title strip with the logo, title and close button.
+-- The custom chrome on `frame`: the background (on `bgFrame`), the drawn
+-- border (outer and inner lines, one path that dips round a selected tab),
+-- and a title strip with the logo, title and close button.
 -- compact: a slimmer title bar for Blizzard's windows, whose content starts
 -- 30px from the top. Returns { Apply(t) (hides it all for the Blizzard
--- style), SetTitle(text), strip }.
+-- style), SetTitle(text), SetTab(tab, t), strip }.
 local function buildChrome(frame, bgFrame, title, close, compact)
     local chrome = {}
-    local inner = CreateFrame("Frame", nil, frame)
-    inner:SetFrameLevel(bgFrame:GetFrameLevel())
+    local fill = createFill(bgFrame)
+    -- Above the background and a selected tab's fill (level +2), below the
+    -- tab labels (+4) and the title strip (+5).
+    local border = CreateFrame("Frame", nil, frame)
+    border:SetAllPoints(frame)
+    border:SetFrameLevel(frame:GetFrameLevel() + 3)
+    local outerPool, innerPool = linePool(border), linePool(border)
     local strip = CreateFrame("Frame", nil, frame)
     strip:SetFrameLevel(frame:GetFrameLevel() + 5)
     local logo = strip:CreateTexture(nil, "ARTWORK")
@@ -963,31 +1089,40 @@ local function buildChrome(frame, bgFrame, title, close, compact)
 
     function chrome.SetTitle(text) titleText:SetText(text or "") end
 
+    -- Background and border, for the window's current size and selected tab.
+    function chrome.Redraw(t)
+        local W, H = frame:GetWidth(), frame:GetHeight()
+        poolStart(outerPool)
+        poolStart(innerPool)
+        if t.chrome ~= "custom" or not W or W <= 0 or H <= 0 then
+            hideFill(fill)
+        else
+            local g = outlineGeometry(t)
+            layoutFill(fill, W, H, g.d, g.radius, t.bg)
+            drawPath(outerPool, framePath(W, H, g.d, g.radius, chrome.tab), true, g.width, shade(t.border, g.shade))
+            if t.inner then
+                drawPath(innerPool, innerPath(W, H, g.innerD, g.innerRadius, g.d, chrome.tab), not chrome.tab,
+                    g.innerWidth, shade(t.inner, g.innerShade))
+            end
+        end
+        poolFinish(outerPool)
+        poolFinish(innerPool)
+    end
+
+    -- The selected tab ({ x, w, h, slant }, or nil), from Style.SkinTabs.
+    function chrome.SetTab(tab, t)
+        chrome.tab = tab
+        chrome.Redraw(t)
+    end
+
+    frame:HookScript("OnSizeChanged", function() chrome.Redraw(Style.Theme()) end)
+    windowChromes[frame] = chrome
+
     function chrome.Apply(t)
         local custom = t.chrome == "custom"
-        inner:SetShown(custom)
         strip:SetShown(custom)
-        if not custom then
-            paint(bgFrame, t, "large", nil)
-            return
-        end
-
-        paint(bgFrame, t, "large", t.bg, t.border)
-        if t.inner then
-            local square = t.edge == "square" or t.key == "letter"
-            ensureBackdrop(inner)
-            inner:SetBackdrop(square
-                and { edgeFile = WHITE, edgeSize = 1 }
-                or { edgeFile = ROUND_EDGE, edgeSize = 12 })
-            inner:SetBackdropBorderColor(unpack(t.inner))
-            inner:ClearAllPoints()
-            local inset = square and 7 or 5
-            inner:SetPoint("TOPLEFT", inset, -inset)
-            inner:SetPoint("BOTTOMRIGHT", -inset, inset)
-            inner:Show()
-        else
-            inner:Hide()
-        end
+        chrome.Redraw(t)
+        if not custom then return end
 
         strip:ClearAllPoints()
         logo:ClearAllPoints()
