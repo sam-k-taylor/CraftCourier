@@ -11,7 +11,7 @@ local defaults = {
     showPanel = true,      -- docked panel beside the mailbox (only on the Inbox tab when extendMailbox is on)
     keepFirstAidCloth = false, -- don't mail cloth this character's First Aid still needs (current bracket and up)
     playSounds = true,     -- a coin sound per mail sent and a chime when a batch is done
-    windowStyle = "satchel", -- "satchel", "letter", "flat" or "blizzard" (ns.Style.THEMES)
+    windowStyle = "satchel", -- "satchel", "flat" or "blizzard" (ns.Style.THEMES; "letter" is disabled for now)
     collapsedSections = {}, -- [sectionKey] = true for settings form sections folded away
     extendMailbox = true,  -- widen Blizzard's mailbox and add the inbox list, send panel and Settings tab
 }
@@ -278,7 +278,7 @@ local function printHelp()
     print("  /craftcourier set <category> <Name Surname[-Realm]>")
     print("  /craftcourier clear <category>")
     print("  /craftcourier log  - show the send log")
-    print("  /craftcourier style [satchel|letter|flat|blizzard]  - change the window style")
+    print("  /craftcourier style [satchel|flat|blizzard]  - change the window style")
     print("  /craftcourier list")
     print("  /craftcourier categories")
     print("  /craftcourier filters [item link]  - open the item filters window")

@@ -29,7 +29,7 @@ CraftCourier attaches the stacks, fills each mail to the 12-attachment limit and
 - **Safe:** soulbound items are skipped, it never mails the character you're playing, and sending stops if a mail fails or you close the mailbox.
 - **Send log:** see every mail CraftCourier has sent, from any of your characters: when it went, who sent it, who received it (in class colours) and what was in it, shown as item icons. Filter by name or item.
 - **See your alts at a glance:** in Settings, each recipient shows its class icon and class colour. Sections (Materials, Plans and Profession Items, Bind on Equip Gear, Custom, Mailbox) fold away with a click.
-- **Window styles:** pick how CraftCourier's windows look in Settings → Mailbox → Window style (or `/ccr style`). **Courier's Satchel** (dark leather, gold frame, wax-seal close button), **Letter** (a parchment page in dark ink), **Flat** (clean, dark and square), or **Blizzard** (the game's own windows). The style covers the whole mailbox too: the inbox, the Send Mail form and opened letters. Changes apply instantly.
+- **Window styles:** pick how CraftCourier's windows look in Settings → Mailbox → Window style (or `/ccr style`). **Courier's Satchel** (dark leather, gold frame, wax-seal close button), **Flat** (clean, dark and square), or **Blizzard** (the game's own windows). The style covers the whole mailbox too: the inbox, the Send Mail form and opened letters. Changes apply instantly.
 - **Progress bar:** watch "Mail 3 of 8" fill up while sending, then a summary such as "Sent 8 mails to 3 alts". A coin sound plays for each mail and a chime when it's done; turn sounds off in Settings.
 - **Keep cloth for First Aid:** turn on **Keep the cloth my First Aid skill still needs** and CraftCourier holds back the cloth your character's First Aid still needs: the one for your current level and every type above it. For example, at 120 it keeps Wool, Silk, Mageweave and Runecloth and mails your Linen. (Linen is used below 81, Wool below 151, Silk below 211, Mageweave below 261, Runecloth below 300.)
 - **Item filters:** reassign any item to a different category, or tell CraftCourier to ignore it. Open **Item Filters** (on the Settings tab, in the settings window, or with `/ccr filters`), click the item slot to pick something from your bags (or drop an item on it), then choose its category or tick **Ignore**. Every filter you've added is listed below, where you can edit or remove it.
@@ -41,7 +41,7 @@ CraftCourier attaches the stacks, fills each mail to the 12-attachment limit and
 - `/craftcourier set <category> <Name Surname>`: set a recipient, e.g. `/ccr set leather Greeb Deez`
 - `/craftcourier clear <category>`: remove a recipient
 - `/craftcourier log`: open the send log
-- `/craftcourier style <satchel|letter|flat|blizzard>`: change the window style
+- `/craftcourier style <satchel|flat|blizzard>`: change the window style
 - `/craftcourier list`: show your recipients
 - `/craftcourier filters`: open the item filters window
 - `/craftcourier assign [item link] <category|ignore>`: fix an item's category

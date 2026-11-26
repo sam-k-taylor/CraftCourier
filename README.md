@@ -99,7 +99,7 @@ Mailer.lua         Mail queue: attaches stacks, then sends (auto) or waits for y
 UI/Mailbox.lua     Extends Blizzard's mail window: double width, Settings tab
 UI/MailSkin.lua    Restyles Blizzard's mailbox (window, tabs, Send Mail form, open letter) in the chosen window style
 UI/Inbox.lua       Inbox summary and scrolling mail list
-UI/Style.lua       Window styles (Courier's Satchel, Letter, Flat, Blizzard) and the shared skinning helpers
+UI/Style.lua       Window styles (Courier's Satchel, Flat, Blizzard; Letter is disabled for now) and the shared skinning helpers
 UI/MailPanel.lua   Send panel (inside the Send Mail tab, or docked beside the inbox)
 UI/Suggest.lua     Recipient name suggestions (game autocomplete, alts, friends, Battle.net), filtered to mailable characters
 UI/LogWindow.lua   Send log window with filter
