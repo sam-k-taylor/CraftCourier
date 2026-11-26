@@ -19,6 +19,9 @@ local extendedMode = false -- UI/Mailbox.lua has widened the mailbox
 local placedIn             -- the frame content is currently anchored in
 local dockedClosed = false -- the user closed the docked window this visit
 local lastScan = {}
+local finished             -- { text, expires } after a batch completes
+local FINISHED_SHOW_TIME = 8
+local PROGRESS_HEIGHT = 20
 
 local function showRowTooltip(row)
     local data = row.data
@@ -53,12 +56,9 @@ local function allKeys()
     return keys
 end
 
+-- Width comes from anchors.
 local function createButton(parent, text, onClick)
-    local button = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    button:SetHeight(BUTTON_HEIGHT)
-    button:SetText(text)
-    button:SetScript("OnClick", onClick)
-    return button
+    return ns.Style.Button(parent, text, nil, BUTTON_HEIGHT, onClick)
 end
 
 local function initRow(row, data)
@@ -72,6 +72,7 @@ local function initRow(row, data)
         row.label:SetPoint("TOPRIGHT", -2, -2)
         row.label:SetJustifyH("LEFT")
         row.label:SetWordWrap(false)
+        ns.Style.Text(row.label, "heading")
 
         -- Each button takes half the row, whatever width the list gives it.
         row.send = createButton(row, "One Click Send", function(self)
@@ -88,9 +89,11 @@ local function initRow(row, data)
     end
 
     row.data = data
-    row.label:SetText(("|T%s:16|t %s (%d) |cffffffff-> %s|r"):format(
+    -- Rebuilt on STYLE_CHANGED, since the colours come from the style.
+    row.label:SetText(("|T%s:16|t %s (%d) %s %s"):format(
         data.category.icon, ns:CategoryDisplayName(data.category), data.entry.total,
-        data.recipient or "|cffff5555no recipient|r"))
+        ns.Style.Colorize("->", "text"),
+        data.recipient and ns.Style.Colorize(ns.Style.ColorName(data.recipient), "text") or ns.Style.Colorize("no recipient", "bad")))
     local enabled = data.recipient ~= nil and not ns.Mailer:IsBusy()
     row.send:SetEnabled(enabled)
     row.review:SetEnabled(enabled)
@@ -99,14 +102,12 @@ end
 local function createContent()
     content = CreateFrame("Frame")
 
-    content.title = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    content.title = ns.Style.Text(content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge"), "heading")
     content.title:SetPoint("TOPLEFT", 2, 0)
-    content.title:SetText("CraftCourier")
+    content.title:SetText(ns.Style.Logo(20) .. " CraftCourier")
 
     -- Separates the embedded panel from Blizzard's send form.
-    content.divider = content:CreateTexture(nil, "ARTWORK")
-    content.divider:SetColorTexture(1, 0.82, 0, 0.25)
-    content.divider:SetWidth(1)
+    content.divider = ns.Style.Divider(content, true)
     content.divider:SetPoint("TOPRIGHT", content, "TOPLEFT", -6, 0)
     content.divider:SetPoint("BOTTOMRIGHT", content, "BOTTOMLEFT", -6, 0)
 
@@ -120,12 +121,15 @@ local function createContent()
     view:SetElementInitializer("Frame", initRow)
     ScrollUtil.InitScrollBoxListWithScrollBar(content.scrollBox, content.scrollBar, view)
 
-    content.empty = content:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+    content.empty = ns.Style.Text(content:CreateFontString(nil, "OVERLAY", "GameFontDisable"), "muted")
     content.empty:SetPoint("TOP", content.scrollBox, "TOP", 0, -8)
     content.empty:SetText("Nothing to send.")
 
-    content.status = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    content.status:SetJustifyH("LEFT")
+    -- Progress while sending ("Mail 3 of 8"), then the result in green for a
+    -- few seconds.
+    content.progress = ns.Style.ProgressBar(content, PROGRESS_HEIGHT)
+    content.progress:Hide()
+    content.status = content.progress.text
 
     -- Doubles as "Stop" while the mailer is busy.
     content.sendAll = createButton(content, "Send All", function()
@@ -152,7 +156,7 @@ local function layout()
     for _, button in ipairs(buttons) do
         button:ClearAllPoints()
     end
-    content.status:ClearAllPoints()
+    content.progress:ClearAllPoints()
     content.scrollBox:ClearAllPoints()
 
     local footer
@@ -178,34 +182,26 @@ local function layout()
         footer = 2 * BUTTON_HEIGHT + 10
     end
 
-    content.status:SetPoint("BOTTOMLEFT", 0, footer + 4)
-    content.status:SetPoint("BOTTOMRIGHT", 0, footer + 4)
+    content.progress:SetPoint("BOTTOMLEFT", 0, footer + 4)
+    content.progress:SetPoint("BOTTOMRIGHT", 0, footer + 4)
 
     local top = embedded and 26 or 0
     content.title:SetShown(embedded)
     content.divider:SetShown(embedded)
     content.scrollBox:SetPoint("TOPLEFT", 0, -top)
-    content.scrollBox:SetPoint("BOTTOMRIGHT", -16, footer + 22)
+    content.scrollBox:SetPoint("BOTTOMRIGHT", -16, footer + PROGRESS_HEIGHT + 10)
 end
 
 local function createDocked()
-    docked = CreateFrame("Frame", "CraftCourierMailPanel", MailFrame, "BasicFrameTemplateWithInset")
-    docked:SetWidth(DOCKED_WIDTH)
-    docked:SetPoint("TOPLEFT", MailFrame, "TOPRIGHT", 4, 0)
-    docked:SetPoint("BOTTOMLEFT", MailFrame, "BOTTOMRIGHT", 4, 0)
-    docked:SetFrameStrata("HIGH")
-
-    local title = docked.TitleText or docked:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    if not docked.TitleText then
-        title:SetPoint("TOP", 0, -5)
-    end
-    title:SetText("CraftCourier")
-
     -- Closing the window keeps it closed until the mailbox is next opened,
     -- rather than until the next tab switch.
-    if docked.CloseButton then
-        docked.CloseButton:HookScript("OnClick", function() dockedClosed = true end)
-    end
+    docked = ns.Style.CreateWindow("CraftCourierMailPanel", "CraftCourier", DOCKED_WIDTH, 400, {
+        parent = MailFrame, strata = "HIGH", movable = false, closeOnEscape = false,
+        compact = true, -- same title bar as the mailbox beside it
+        onClose = function() dockedClosed = true end,
+    })
+    docked:SetPoint("TOPLEFT", MailFrame, "TOPRIGHT", 4, 0)
+    docked:SetPoint("BOTTOMLEFT", MailFrame, "BOTTOMRIGHT", 4, 0)
 end
 
 -- Extended mailbox: embedded on the Send Mail tab, docked on the Inbox tab
@@ -231,8 +227,8 @@ local function place()
             content:SetPoint("BOTTOMRIGHT", MailFrame, "BOTTOMRIGHT", -10, 5)
         else
             content:SetParent(docked)
-            content:SetPoint("TOPLEFT", 12, -30)
-            content:SetPoint("BOTTOMRIGHT", -12, 12)
+            content:SetPoint("TOPLEFT", docked.body, "TOPLEFT", 2, -2)
+            content:SetPoint("BOTTOMRIGHT", docked.body, "BOTTOMRIGHT", -2, 2)
         end
         content:Show()
         layout()
@@ -262,12 +258,32 @@ function ns:PlaceMailPanel(extended)
 end
 
 local function statusText()
-    if not ns.Mailer:IsBusy() then return "" end
     local sent, total = ns.Mailer:GetProgress()
     if ns.Mailer:GetMode() == "review" then
         return ("Mail %d of %d is ready. Check it, then click Send."):format(sent + 1, total)
     end
     return ("Sending mail %d of %d..."):format(sent + 1, total)
+end
+
+local function updateProgress()
+    local progress, bar = content.progress, content.progress.bar
+    if ns.Mailer:IsBusy() then
+        local sent, total = ns.Mailer:GetProgress()
+        bar:SetMinMaxValues(0, math.max(total, 1))
+        bar:SetValue(sent)
+        progress:SetState("progress")
+        content.status:SetText(statusText())
+        progress:Show()
+    elseif finished and GetTime() < finished.expires then
+        bar:SetMinMaxValues(0, 1)
+        bar:SetValue(1)
+        progress:SetState("success")
+        content.status:SetText(finished.text)
+        progress:Show()
+    else
+        finished = nil
+        progress:Hide()
+    end
 end
 
 function ns:RefreshMailPanel()
@@ -293,7 +309,7 @@ function ns:RefreshMailPanel()
     content.sendAll:SetText(busy and "Stop" or "Send All")
     content.sendAll:SetEnabled(busy or anySendable)
     content.reviewAll:SetEnabled(anySendable and not busy)
-    content.status:SetText(statusText())
+    updateProgress()
 end
 
 ns:RegisterEvent("MAIL_SHOW", function()
@@ -316,4 +332,11 @@ ns:RegisterEvent("GET_ITEM_INFO_RECEIVED", function()
     end)
 end)
 ns:On("MAILER_STATE", function() ns:RefreshMailPanel() end)
+ns:On("MAILER_FINISHED", function(sent, alts)
+    if sent == 0 then return end
+    finished = { text = ns:SentSummary(sent, alts), expires = GetTime() + FINISHED_SHOW_TIME }
+    ns:RefreshMailPanel()
+    C_Timer.After(FINISHED_SHOW_TIME + 0.1, function() ns:RefreshMailPanel() end)
+end)
 ns:On("CONFIG_CHANGED", function() ns:RefreshMailPanel() end)
+ns:On("STYLE_CHANGED", function() ns:RefreshMailPanel() end)

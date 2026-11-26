@@ -17,7 +17,7 @@ Pick a character for each type of material: cloth, leather, herbs, ore, bars and
   - **Settings** tab: the recipient form.
 
   Turn off **Extend the mailbox** in settings to keep Blizzard's mail window as it is and dock the CraftCourier panel beside it instead.
-- Settings in three places: the mailbox's **Settings** tab, a page under **Options → AddOns → CraftCourier**, and a small window opened with `/craftcourier`. As you type a recipient, it suggests names from the game's own mail autocomplete (every character on your account, friends, guild members and people you've played with recently), recipients you've already set, and Battle.net friends playing this version of WoW. Only characters you can actually mail (same ruleset and faction) are suggested. On Forever the realm name is just a shard of a ruleset (PvE, PvP, RPPvE, RPPvP), so characters on different realms of the same ruleset count as one world.
+- Settings in three places: the mailbox's **Settings** tab, a page under **Options → AddOns → CraftCourier**, and a small window opened with `/craftcourier`. As you type a recipient, it suggests names from the game's own mail autocomplete (every character on your account, friends, guild members and people you've played with recently), recipients you've already set, and Battle.net friends playing this version of WoW. Only characters you can actually mail (same ruleset and faction) are suggested. The Send Mail **To:** box uses the same list (minus the character you're on) in place of Blizzard's autocomplete, and shows a recorded alt's class colour and icon. On Forever the realm name is just a shard of a ruleset (PvE, PvP, RPPvE, RPPvP), so characters on different realms of the same ruleset count as one world.
 - **Keep the cloth my First Aid skill still needs** (off by default): the send panel leaves out the cloth for the logged-in character's current First Aid bracket and every higher one (Linen below 81, Wool below 151, Silk below 211, Mageweave below 261, Runecloth below 300), so only cloth it has outgrown is mailed. Updates as the skill rises.
 - A send panel listing each material type in your bags with its item count and two buttons:
   - **One Click Send** attaches the stacks and sends the mails automatically.
@@ -97,10 +97,13 @@ Categories.lua     Category list, item classification, bag scanning
 Log.lua            Records each sent mail (time, from, to, items)
 Mailer.lua         Mail queue: attaches stacks, then sends (auto) or waits for you to send (review), one mail at a time
 UI/Mailbox.lua     Extends Blizzard's mail window: double width, Settings tab
+UI/MailSkin.lua    Restyles Blizzard's mailbox (window, tabs, Send Mail form, open letter) in the chosen window style
 UI/Inbox.lua       Inbox summary and scrolling mail list
+UI/Style.lua       Window styles (Courier's Satchel, Letter, Flat, Blizzard) and the shared skinning helpers
 UI/MailPanel.lua   Send panel (inside the Send Mail tab, or docked beside the inbox)
 UI/Suggest.lua     Recipient name suggestions (game autocomplete, alts, friends, Battle.net), filtered to mailable characters
 UI/LogWindow.lua   Send log window with filter
+UI/Filters.lua     Item filters window: pick an item from your bags, set its category or ignore it, custom categories, list of filters
 UI/Config.lua      Recipient form, shown on the Settings tab, the Options > AddOns page and a small window
 .pkgmeta           CurseForge/BigWigs packager config
 package.sh         Builds the release zip into .release/

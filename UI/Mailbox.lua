@@ -55,7 +55,7 @@ local function createSettingsPage()
     -- Start hidden so the form loads in OnShow.
     settingsPage:Hide()
 
-    local hint = settingsPage:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    local hint = ns.Style.Text(settingsPage:CreateFontString(nil, "OVERLAY", "GameFontHighlight"), "hint")
     hint:SetPoint("TOPLEFT", 16, -14)
     hint:SetText("Who should receive each material? Start typing for suggestions from your alts and friends.")
 
@@ -63,11 +63,11 @@ local function createSettingsPage()
     local half = (baseWidth * 2 - 8 - 28) / 2
     ns:BuildConfigForm(settingsPage, 44, { labelX = 16, boxX = 170, boxWidth = 134, columns = 2, columnWidth = half, bottom = 40 })
 
-    local log = CreateFrame("Button", nil, settingsPage, "UIPanelButtonTemplate")
-    log:SetSize(120, 22)
+    local log = ns.Style.Button(settingsPage, "Open Log", 120, 22, function() ns:ToggleLog() end)
     log:SetPoint("BOTTOMRIGHT", -12, 10)
-    log:SetText("Open Log")
-    log:SetScript("OnClick", function() ns:ToggleLog() end)
+
+    local filters = ns.Style.Button(settingsPage, "Item Filters", 120, 22, function() ns:ToggleFilters() end)
+    filters:SetPoint("RIGHT", log, "LEFT", -8, 0)
 
     settingsTab = CreateFrame("Button", nil, CreateFrame("Frame", nil, MailFrame), "PanelTabButtonTemplate")
     settingsTab:SetText("Settings")
@@ -75,6 +75,8 @@ local function createSettingsPage()
     settingsTab:SetScript("OnClick", showSettingsTab)
     selectSettingsTab(false)
     settingsTab:Hide() -- shown by setExtended
+    -- Blizzard's two tabs and ours, restyled as one row (UI/Style.lua).
+    ns.Style.SkinTabs(MailFrame, { MailFrameTab1, MailFrameTab2, settingsTab })
 
     -- Blizzard's Inbox and Send Mail tabs (and MailFrame_Show, which selects
     -- the Inbox) all go through MailFrameTab_OnClick.
@@ -122,6 +124,8 @@ local function init()
     if not baseWidth or baseWidth < 200 then
         baseWidth = FALLBACK_WIDTH
     end
+    ns:SkinMailFrame()
+    ns:AttachMailSuggestions()
     createSettingsPage()
     apply()
     ns:On("CONFIG_CHANGED", apply)
