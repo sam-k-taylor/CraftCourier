@@ -863,8 +863,17 @@ function Style.SkinEditBox(box, scope, keepColor, inset)
     underline:SetPoint("BOTTOMLEFT", 0, 1)
     underline:SetPoint("BOTTOMRIGHT", 0, 1)
     underlines[box] = underline
+    -- Our box starts at the edit box's edge (Blizzard's art sits outside it),
+    -- so without a backing inset pad the text off the border. Boxes that
+    -- already have insets (search boxes, with their icon) keep theirs.
+    local l, r, top, bottom = 0, 0, 0, 0
+    if box.GetTextInsets then l, r, top, bottom = box:GetTextInsets() end
+    local pad = not inset and (l or 0) < 4 and box.SetTextInsets
     Style.Register(function(t)
         local custom = t.chrome == "custom"
+        if pad then
+            box:SetTextInsets(custom and 5 or l, custom and math.max(r or 0, 5) or r, top, bottom)
+        end
         setTemplateTextures(box, custom and 0 or 1)
         local lined = custom and t.underlineInputs
         bg:SetShown(custom)

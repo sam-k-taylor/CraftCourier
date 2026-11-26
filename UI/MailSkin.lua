@@ -120,6 +120,32 @@ local function skinSendMail()
     end
     Style.TextAll(labels(SendMailCostMoneyFrame), "heading")
 
+    -- A recorded alt in the To: box shows its class colour and icon, as in
+    -- the settings (the Letter style keeps the text in ink). Registered after
+    -- TextAll so it wins when the style changes.
+    local to = SendMailNameEditBox
+    if to then
+        local icon = SendMailFrame:CreateTexture(nil, "ARTWORK")
+        icon:SetSize(16, 16)
+        icon:SetPoint("LEFT", to, "RIGHT", 4, 0)
+        icon:Hide()
+        local function colorRecipient()
+            local t = Style.Theme()
+            local char = ns:FindCharacter(strtrim(to:GetText() or ""))
+            local class = char and char.class
+            local shown = class and Style.SetClassIcon(icon, class) or false
+            icon:SetShown(shown)
+            local r, g, b = Style.ClassColor(class)
+            if shown and t.classText and r then
+                to:SetTextColor(r, g, b)
+            else
+                to:SetTextColor(unpack(t.inputText))
+            end
+        end
+        to:HookScript("OnTextChanged", colorRecipient)
+        Style.Register(colorRecipient)
+    end
+
     -- The letter body: our input box instead of the stationery.
     if SendMailScrollFrame then
         Style.SkinArea(SendMailScrollFrame, named("SendStationeryBackgroundLeft", "SendStationeryBackgroundRight"))

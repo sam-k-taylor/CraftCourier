@@ -320,11 +320,13 @@ local activeBox
 local matches = {}
 local selected = 0
 local offset = 0 -- index in matches of the row above the first visible one
+local exactMatch = false -- the box's text already names a candidate
 
+-- The list sits on a dark tooltip in every style, so class colours always read.
 local function colorize(entry)
-    local color = entry.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[entry.class]
-    if color then
-        return ("|cff%02x%02x%02x%s|r"):format(math.floor(color.r * 255), math.floor(color.g * 255), math.floor(color.b * 255), entry.value)
+    local r, g, b = ns.Style.ClassColor(entry.class)
+    if r then
+        return ("|cff%02x%02x%02x%s|r"):format(math.floor(r * 255), math.floor(g * 255), math.floor(b * 255), entry.value)
     end
     return entry.value
 end
@@ -334,6 +336,7 @@ local function hide()
     activeBox = nil
     selected = 0
     offset = 0
+    exactMatch = false
 end
 
 local function accept(index)
@@ -434,6 +437,7 @@ end
 local function update(box, typing)
     local text = strtrim(box:GetText() or ""):lower()
     local exact = false
+    local excludeSelf = box.ccSuggestOpts and box.ccSuggestOpts.excludeSelf
     wipe(matches)
 
     -- Prefix matches first, then substring matches.
@@ -443,6 +447,7 @@ local function update(box, typing)
             local pos = entry.value:lower():find(text, 1, true)
             exact = exact or entry.value:lower() == text
             local wanted = (pass == 1 and pos == 1) or (pass == 2 and pos and pos > 1)
+            if excludeSelf and entry.source == "self" then wanted = false end
             if wanted and entry.value:lower() ~= text then
                 table.insert(matches, entry)
             end
@@ -457,6 +462,7 @@ local function update(box, typing)
     if not dropdown then createDropdown() end
     activeBox = box
     offset = 0
+    exactMatch = exact
     -- Don't pre-select when the text already names someone, so Enter keeps it.
     highlight((typing and text ~= "" and not exact) and 1 or 0)
     local rows = math.min(#matches, VISIBLE_ROWS)
@@ -468,7 +474,9 @@ local function update(box, typing)
 end
 
 -- Adds suggestions to an EditBox. Arrow keys move, Tab/Enter accept, Escape closes.
-function ns:AttachSuggestions(box)
+-- opts.excludeSelf: leave out the logged-in character (it can't be mailed).
+function ns:AttachSuggestions(box, opts)
+    box.ccSuggestOpts = opts
     box:SetAltArrowKeyMode(false)
 
     box:HookScript("OnTextChanged", function(self, userInput)
@@ -496,9 +504,47 @@ function ns:AttachSuggestions(box)
             highlight((selected - 2) % #matches + 1)
         end
     end)
+    -- Tab takes the highlighted row, or the first one, but never replaces a
+    -- name that's already complete.
     box:HookScript("OnTabPressed", function(self)
-        if activeBox == self then accept(math.max(selected, 1)) end
+        if activeBox == self and (selected > 0 or not exactMatch) then
+            accept(math.max(selected, 1))
+        end
     end)
+end
+
+-- The Send Mail "To:" box gets the same list as the settings boxes in place
+-- of Blizzard's autocomplete popup and inline completion.
+function ns:AttachMailSuggestions()
+    local box = SendMailNameEditBox
+    if not box or box.ccSuggestOpts then return end
+    -- Without a source, AutoComplete_Update and the inline completion
+    -- (AutoCompleteEditBox_AddHighlightedText) return early.
+    box.autoCompleteSource = nil
+    box.addHighlightedText = nil
+    if AutoComplete_HideIfAttachedTo then AutoComplete_HideIfAttachedTo(box) end
+    self:AttachSuggestions(box, { excludeSelf = true })
+
+    -- Enter takes the highlighted row, then moves on to the subject as
+    -- Blizzard's handler does.
+    local onEnter = box:GetScript("OnEnterPressed")
+    box:SetScript("OnEnterPressed", function(b, ...)
+        if ns:AcceptSuggestion(b) then
+            if SendMailSubjectEditBox then SendMailSubjectEditBox:SetFocus() end
+        elseif onEnter then
+            onEnter(b, ...)
+        end
+    end)
+    -- The first Escape closes the list, the next leaves the box.
+    local onEscape = box:GetScript("OnEscapePressed")
+    box:SetScript("OnEscapePressed", function(b, ...)
+        if activeBox == b and dropdown and dropdown:IsShown() then
+            hide()
+        elseif onEscape then
+            onEscape(b, ...)
+        end
+    end)
+    if MailFrame then MailFrame:HookScript("OnHide", hide) end
 end
 
 -- Called by the box's own OnEnterPressed; returns true if a suggestion was taken.

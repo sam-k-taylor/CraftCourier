@@ -125,6 +125,7 @@ local function init()
         baseWidth = FALLBACK_WIDTH
     end
     ns:SkinMailFrame()
+    ns:AttachMailSuggestions()
     createSettingsPage()
     apply()
     ns:On("CONFIG_CHANGED", apply)

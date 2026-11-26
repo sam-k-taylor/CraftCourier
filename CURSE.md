@@ -23,7 +23,7 @@ CraftCourier attaches the stacks, fills each mail to the 12-attachment limit and
 - **A better inbox:** the mail window is twice as wide, with a summary of your mail (how many, items, gold, COD and anything about to expire) and one scrolling list of every mail, with no pages. Take a whole mail with one click, or just one attachment.
 - **Settings tab** on the mailbox, so you can change recipients without leaving it. Prefer Blizzard's mailbox? Turn off **Extend the mailbox** and the panel docks beside it instead.
 - **Send All** packs material types that go to the same alt into shared mails, so you pay for fewer mails.
-- **Name suggestions** as you type, showing only characters you can actually mail.
+- **Name suggestions** as you type, showing only characters you can actually mail, in the settings and in the Send Mail **To:** box, with your alts in their class colours.
 - **Smart hiding:** on your herbalism alt, the Herbs button doesn't appear, because it's already the right character.
 - **Tooltips** show exactly which items will go to whom before you click.
 - **Safe:** soulbound items are skipped, it never mails the character you're playing, and sending stops if a mail fails or you close the mailbox.
