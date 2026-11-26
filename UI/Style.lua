@@ -1,10 +1,10 @@
 local _, ns = ...
 
--- Shared look for every CraftCourier screen, in four window styles the user
+-- Shared look for every CraftCourier screen, in window styles the user
 -- picks from (db.windowStyle):
 --   satchel  - the logo as a window: dark leather, rounded gold frame,
 --              parchment title strip, wax-seal close button (default)
---   letter   - a parchment page in dark ink
+--   letter   - a parchment page in dark ink (disabled for now: `disabled = true`)
 --   flat     - flat dark panels, square corners, thin gold accents
 --   blizzard - Blizzard's own portrait window and red buttons
 --
@@ -66,6 +66,9 @@ Style.THEMES = {
     },
     letter = {
         key = "letter", label = "Letter",
+        -- Hidden until the parchment looks right: not offered, and a saved
+        -- "letter" falls back to the default (the setting is kept).
+        disabled = true,
         chrome = "custom", edge = "round", close = "seal", titleStrip = false, underlineInputs = true,
         -- Dark ink on a light page: the game fonts' black drop shadow smears.
         noShadow = true,
@@ -110,7 +113,7 @@ Style.THEMES = {
         classText = true,
     },
 }
-Style.THEME_ORDER = { "satchel", "letter", "flat", "blizzard" }
+Style.THEME_ORDER = { "satchel", "flat", "blizzard" } -- "letter" is disabled for now
 Style.DEFAULT_THEME = "satchel"
 
 -- Colours that don't change with the style.
@@ -122,8 +125,9 @@ Style.COLOR = {
 -- The style for a scope: "blizzard" content always gets the Blizzard palette.
 function Style.Theme(scope)
     if scope == "blizzard" then return Style.THEMES.blizzard end
-    local key = ns.db and ns.db.windowStyle
-    return Style.THEMES[key] or Style.THEMES[Style.DEFAULT_THEME]
+    local theme = Style.THEMES[ns.db and ns.db.windowStyle]
+    if not theme or theme.disabled then theme = Style.THEMES[Style.DEFAULT_THEME] end
+    return theme
 end
 
 function Style.IsCustom(scope)
@@ -142,7 +146,8 @@ function Style.Register(apply, scope)
 end
 
 function Style.SetTheme(key)
-    if not Style.THEMES[key] or not ns.db then return false end
+    local theme = Style.THEMES[key]
+    if not theme or theme.disabled or not ns.db then return false end
     ns.db.windowStyle = key
     for _, run in ipairs(registry) do run() end
     ns:Fire("STYLE_CHANGED")
